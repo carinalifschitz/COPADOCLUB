@@ -18,7 +18,6 @@ BANCO_RESPALDO = [
 ]
 
 def obtener_datos_final_mundo():
-    # En Vercel podemos usar el endpoint directo tradicional de API-Football sin bloqueos
     url_base = "https://api-sports.io"
     headers = {
         "x-rapidapi-host": "v3.football.api-sports.io",
@@ -28,7 +27,6 @@ def obtener_datos_final_mundo():
     datos_partido = {"detalles": {}, "eventos": []}
     
     try:
-        # ID 970030: Final de Qatar 2022 (Argentina vs Francia)
         url_fixture = f"{url_base}/fixtures?id=970030"
         res = requests.get(url_fixture, headers=headers, timeout=5)
         
@@ -69,26 +67,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# RUTA RAÍZ ADAPTADA PARA VERCEL
-@app.get("/", response_class=HTMLResponse)
-async def obtener_interfaz():
-    # Vercel ejecuta desde la carpeta 'api/', buscamos el HTML un nivel arriba en la raíz
-    ruta_html = os.path.join(os.path.dirname(__file__), "..", "index.html")
-    if os.path.exists(ruta_html):
-        with open(ruta_html, "r", encoding="utf-8") as archivo:
-            return HTMLResponse(content=archivo.read(), status_code=200)
-    return HTMLResponse(content="<h1>⚽ Servidor Golazo IA Activo</h1>", status_code=200)
-
+# --- EL ENDPOINT DE LAS TRIVIAS ---
 @app.get("/api/trivias")
 async def obtener_trivias_http():
     if not GROK_API_KEY:
         return {"preguntas": random.sample(BANCO_RESPALDO, len(BANCO_RESPALDO))}
 
-    # 1. Consultamos online la API de Fútbol (Se ejecuta en milisegundos en Vercel)
     contexto_mundial = obtener_datos_final_mundo()
     
     if not contexto_mundial.get("detalles"):
-        # Resguardo real por si las keys expiran o no tienen créditos
         contexto_mundial = {
             "detalles": {"local": "Argentina", "visitante": "Francia", "goles_local": 3, "goles_visitante": 3, "estadio": "Lusail Iconic Stadium"},
             "eventos": [
@@ -98,9 +85,9 @@ async def obtener_trivias_http():
             ]
         }
 
-    # 2. Le mandamos el JSON a la API oficial de Grok de xAI
     try:
-        url_grok = "https://x.ai"
+        # Corregido: URL oficial del endpoint de Grok
+        url_grok = "https://api.x.ai/v1/chat/completions"
         headers_grok = {
             "Authorization": f"Bearer {GROK_API_KEY}",
             "Content-Type": "application/json"
@@ -108,12 +95,14 @@ async def obtener_trivias_http():
         
         prompt_sistema = (
             "Sos un historiador deportivo experto en Copas del Mundo. Tu única tarea es responder con un objeto JSON válido. "
-            "Este JSON debe tener una clave única llamada 'preguntas' que contenga un array de exactamente 40 objetos. "
+            "Este JSON debe tener una clave única llamada 'preguntas' que contenga un array de objetos. "
             "No devuelvas bloques Markdown ni texto explicativo extra."
         )
+        
+        # Corregido: Bajamos a 10 preguntas para que no dé Timeout (máximo 10s en Vercel gratis)
         prompt_usuario = (
-            f"Basándote estrictamente en este JSON con datos reales de la Final de Qatar 2022 extraídos de la API: {json.dumps(contexto_mundial)}. "
-            "Generá un array de exactamente 40 preguntas de trivia variadas sobre este partido. "
+            f"Basándote estrictamente en este JSON con datos reales de la Final de Qatar 2022: {json.dumps(contexto_mundial)}. "
+            "Generá un array de exactamente 10 preguntas de trivia variadas sobre este partido. "
             "Estructura requerida por objeto del array: pregunta, opciones (array de 3 strings), correcta (debe coincidir exactamente con una opción)."
         )
 
@@ -127,7 +116,7 @@ async def obtener_trivias_http():
             "temperature": 0.7
         }
 
-        res = requests.post(url_grok, json=payload, headers=headers_grok, timeout=12)
+        res = requests.post(url_grok, json=payload, headers=headers_grok, timeout=8)
         
         if res.status_code == 200:
             datos_api = res.json()
