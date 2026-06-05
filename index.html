@@ -118,14 +118,14 @@
     <div class="container">
         <div id="scr-menu" class="screen active">
             <h1>⚽ Golazo IA</h1>
-            <p>Trivia en tiempo real impulsada por Grok-2 y estadísticas en vivo de la Final de Qatar 2022.</p>
+            <p>Trivia en tiempo real impulsada por Grok-2 y estadísticas de la Final de Qatar 2022.</p>
             <button class="btn" onclick="iniciarJuego()">Iniciar Trivia 🚀</button>
         </div>
 
         <div id="scr-loading" class="screen">
-            <h1>Consultando Historial...</h1>
+            <h1>Consultando Estadísticas...</h1>
             <div class="loader"></div>
-            <p>Conectando con la API de fútbol y generando preguntas personalizadas con IA...</p>
+            <p>Conectando con la API de fútbol y generando preguntas con Inteligencia Artificial...</p>
         </div>
 
         <div id="scr-quiz" class="screen">
@@ -133,15 +133,15 @@
                 <span id="quiz-progress">Pregunta: 0/0</span>
                 <span id="local-score" style="color: var(--success); font-weight: bold;">0 pts</span>
             </div>
-            <h3 id="box-pregunta" style="text-align: left; line-height: 1.4;">Cargando pregunta...</h3>
+            <h3 id="box-pregunta" style="text-align: left; line-height: 1.4;">Cargando...</h3>
             <div id="container-options" class="options-container"></div>
             <div id="box-feedback" class="feedback"></div>
             <button id="btn-next-action" class="btn" style="display: none;" onclick="avanzarPregunta()">Siguiente Pregunta ➡️</button>
         </div>
 
         <div id="scr-results" class="screen">
-            <h1>🏆 ¡Fin de la Partida!</h1>
-            <p id="box-final-msg">Completaste la trivia mundialista de Golazo IA.</p>
+            <h1>🏆 ¡Trivia Completada!</h1>
+            <p>Tu puntuación final es de:</p>
             <h2 id="box-final-score" style="color: var(--success); font-size: 2.5rem; margin: 20px 0;">0 pts</h2>
             <button class="btn" onclick="cambiarPantalla('scr-menu')">Volver a Jugar 🔄</button>
         </div>
@@ -152,6 +152,12 @@
         let indicePreguntaActual = 0;
         let puntosLocal = 0;
         let preguntaActualObj = null;
+
+        const BANCO_NATIVO = [
+            {"pregunta": "¿Qué equipo venció al Real Madrid en la Intercontinental del 2000?", "opciones": ["Boca Juniors", "River Plate", "Palmeiras"], "correcta": "Boca Juniors"},
+            {"pregunta": "¿Quién es el máximo goleador histórico de la Selección Argentina?", "opciones": ["Lionel Messi", "Gabriel Batistuta", "Diego Maradona"], "correcta": "Lionel Messi"},
+            {"pregunta": "¿En qué club europeo debutó el Kun Agüero?", "opciones": ["Atlético de Madrid", "Manchester City", "Barcelona"], "correcta": "Atlético de Madrid"}
+        ];
 
         function cambiarPantalla(pantallaId) {
             document.querySelectorAll('.screen').forEach(scr => scr.classList.remove('active'));
@@ -165,27 +171,18 @@
             document.getElementById("local-score").innerText = "0 pts";
 
             try {
-                // RUTA REESCRITA EN VERCEL
                 const respuesta = await fetch("/api/trivias");
-                if (!respuesta.ok) {
-                    throw new Error("Error en la respuesta del servidor");
-                }
+                if (!respuesta.ok) throw new Error("Error de servidor");
                 
                 const datos = await respuesta.json();
-                
-                if (datos && datos.preguntas && datos.preguntas.length > 0) {
-                    preguntasPartida = datos.preguntas;
-                    cambiarPantalla("scr-quiz");
-                    renderizarPreguntaActual();
-                } else {
-                    alert("No se pudieron cargar las preguntas de la IA. Reintentá.");
-                    cambiarPantalla("scr-menu");
-                }
+                preguntasPartida = datos.preguntas && datos.preguntas.length > 0 ? datos.preguntas : BANCO_NATIVO;
             } catch (error) {
-                console.error("Error al iniciar la trivia:", error);
-                alert("Ocurrió un error al conectar con el servidor de IA.");
-                cambiarPantalla("scr-menu");
+                console.log("Error al conectar al backend, usando banco local de emergencia.");
+                preguntasPartida = BANCO_NATIVO;
             }
+
+            cambiarPantalla("scr-quiz");
+            renderizarPreguntaActual();
         }
 
         function renderizarPreguntaActual() {
@@ -220,7 +217,7 @@
                 puntosLocal += 10;
                 document.getElementById("local-score").innerText = `${puntosLocal} pts`;
             } else {
-                feedback.innerText = `Incorrecto. La respuesta correcta era: ${preguntaActualObj.correcta}`;
+                feedback.innerText = `Incorrecto. La respuesta era: ${preguntaActualObj.correcta}`;
                 feedback.className = "feedback incorrect";
             }
 
