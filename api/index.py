@@ -67,10 +67,9 @@ def obtener_datos_final_mundo():
         
     return datos_partido
 
-# --- ENDPOINTS MULTI-RUTA (EVITA EL NOT FOUND) ---
+# --- ENDPOINT COMPATIBLE ---
 @app.get("/api/trivias")
 @app.get("/trivias")
-@app.get("/")
 async def obtener_trivias_http():
     if not GROK_API_KEY:
         return {"preguntas": random.sample(BANCO_RESPALDO, len(BANCO_RESPALDO))}
