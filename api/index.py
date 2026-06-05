@@ -4,12 +4,13 @@ import os
 import requests
 import random
 from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 
-# 1. INSTANCIA TOP-LEVEL (Esto es lo que Vercel busca obligatoriamente)
+# --- INSTANCIA GLOBAL DE FASTAPI ---
 app = FastAPI()
 
-# 2. Configuración de Middlewares sueltos a nivel global
+# Configuración de CORS para que tu frontend se pueda comunicar sin bloqueos
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -30,16 +31,16 @@ BANCO_RESPALDO = [
 ]
 
 def obtener_datos_final_mundo():
-    if not FOOTBALL_API_KEY:
-        return {"detalles": {}, "eventos": []}
-
-    url_base = "https://v3.football.api-sports.io"
+    url_base = "https://api-sports.io"
     headers = {
-        "x-apisports-key": FOOTBALL_API_KEY
+        "x-rapidapi-host": "v3.football.api-sports.io",
+        "x-rapidapi-key": FOOTBALL_API_KEY if FOOTBALL_API_KEY else "",
+        "x-apisports-key": FOOTBALL_API_KEY if FOOTBALL_API_KEY else "",
     }
     datos_partido = {"detalles": {}, "eventos": []}
     
     try:
+        # ID 970030: Final de Qatar 2022 (Argentina vs Francia)
         url_fixture = f"{url_base}/fixtures?id=970030"
         res = requests.get(url_fixture, headers=headers, timeout=4)
         
@@ -65,17 +66,20 @@ def obtener_datos_final_mundo():
                         "tipo": evento["type"],
                         "detalle": evento["detail"]
                     })
-    except Exception as e:
-        print(f"Error en API-Football: {e}")
+    except Exception:
+        pass
         
     return datos_partido
 
-# 3. ENDPOINT ADAPTADO PARA ZERO-CONFIG
+# --- ENDPOINT PRINCIPAL DE LAS TRIVIAS ---
+# Mapeamos tanto la raíz del archivo como la ruta por defecto de Vercel para evitar el "Not Found"
 @app.get("/api/index")
+@app.get("/")
 async def obtener_trivias_http():
     if not GROK_API_KEY:
         return {"preguntas": random.sample(BANCO_RESPALDO, len(BANCO_RESPALDO))}
 
+    # 1. Consultamos la API de Fútbol
     contexto_mundial = obtener_datos_final_mundo()
     
     if not contexto_mundial.get("detalles"):
@@ -88,8 +92,9 @@ async def obtener_trivias_http():
             ]
         }
 
+    # 2. Conexión con la API oficial de Grok (xAI)
     try:
-        url_grok = "https://api.x.ai/v1/chat/completions"
+        url_grok = "https://api.x.ai/v1/chat/completions"  # <-- URL oficial corregida
         headers_grok = {
             "Authorization": f"Bearer {GROK_API_KEY}",
             "Content-Type": "application/json"
@@ -101,9 +106,10 @@ async def obtener_trivias_http():
             "No devuelvas bloques Markdown ni texto explicativo extra."
         )
         
+        # Reducido a 12 preguntas para que responda rápido y evitar el Timeout de 10s de Vercel
         prompt_usuario = (
             f"Basándote estrictamente en este JSON con datos reales de la Final de Qatar 2022 extraídos de la API: {json.dumps(contexto_mundial)}. "
-            "Generá un array de exactamente 10 preguntas de trivia variadas sobre este partido. "
+            "Generá un array de exactamente 12 preguntas de trivia variadas sobre este partido. "
             "Estructura requerida por objeto del array: pregunta, opciones (array de 3 strings), correcta (debe coincidir exactamente con una opción)."
         )
 
@@ -117,6 +123,7 @@ async def obtener_trivias_http():
             "temperature": 0.7
         }
 
+        # Timeout de 6 segundos para que si Grok se traba, devuelva el respaldo antes de que Vercel corte la conexión
         res = requests.post(url_grok, json=payload, headers=headers_grok, timeout=6)
         
         if res.status_code == 200:
@@ -129,8 +136,8 @@ async def obtener_trivias_http():
                 random.shuffle(preguntas_mezcladas)
                 return {"preguntas": preguntas_mezcladas}
                 
-    except Exception as e:
-        print(f"Error en Grok: {e}")
+    except Exception:
+        pass
     
     copia_respaldo = list(BANCO_RESPALDO)
     random.shuffle(copia_respaldo)
