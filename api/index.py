@@ -87,7 +87,7 @@ async def obtener_trivias_http():
 
     try:
         # Corregido: URL oficial del endpoint de Grok
-        url_grok = "https://api.x.ai/v1/chat/completions"
+        url_grok = "https://api.x.ai/v1/chat/completions""
         headers_grok = {
             "Authorization": f"Bearer {GROK_API_KEY}",
             "Content-Type": "application/json"
