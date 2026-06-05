@@ -67,9 +67,8 @@ def obtener_datos_final_mundo():
         
     return datos_partido
 
-# --- ENDPOINT COMPATIBLE ---
+# --- ENDPOINT DE LA TRIVIA ---
 @app.get("/api/trivias")
-@app.get("/trivias")
 async def obtener_trivias_http():
     if not GROK_API_KEY:
         return {"preguntas": random.sample(BANCO_RESPALDO, len(BANCO_RESPALDO))}
