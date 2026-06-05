@@ -1,243 +1,134 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>⚽ Golazo IA - Trivia Mundialista</title>
-    <style>
-        :root {
-            --bg-color: #0b0f19;
-            --card-bg: #151f32;
-            --primary: #2563eb;
-            --primary-hover: #1d4ed8;
-            --success: #10b981;
-            --error: #ef4444;
-            --text: #f3f4f6;
-            --text-muted: #6b7280;
-        }
-        body {
-            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text);
-            margin: 0;
-            padding: 20px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-        }
-        .container {
-            background-color: var(--card-bg);
-            padding: 30px;
-            border-radius: 16px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-            width: 100%;
-            max-width: 550px;
-            text-align: center;
-        }
-        h1 { margin-top: 0; color: #fff; font-size: 2rem; }
-        p { color: var(--text-muted); }
-        .screen { display: none; }
-        .screen.active { display: block; }
+import asyncio
+import json
+import os
+import requests
+import random
+from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
+
+app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# --- CONFIGURACIÓN DE CREDENCIALES ---
+GROK_API_KEY = os.environ.get("GROK_API_KEY")
+FOOTBALL_API_KEY = os.environ.get("FOOTBALL_API_KEY")
+
+# --- BANCO DE RESPALDO INTEGRADO ---
+BANCO_RESPALDO = [
+    {"pregunta": "¿Cuál fue el resultado final tras los 120 minutos en la final de Qatar 2022?", "opciones": ["3-3", "2-2", "4-4"], "correcta": "3-3"},
+    {"pregunta": "¿Qué jugador argentino anotó el primer gol de penal?", "opciones": ["Lionel Messi", "Ángel Di María", "Julián Álvarez"], "correcta": "Lionel Messi"},
+    {"pregunta": "¿En qué estadio se jugó la final de Qatar 2022?", "opciones": ["Lusail Iconic Stadium", "Al Bayt Stadium", "974 Stadium"], "correcta": "Lusail Iconic Stadium"}
+]
+
+def obtener_datos_final_mundo():
+    url_base = "https://api-sports.io"
+    headers = {
+        "x-rapidapi-host": "v3.football.api-sports.io",
+        "x-rapidapi-key": FOOTBALL_API_KEY if FOOTBALL_API_KEY else "",
+        "x-apisports-key": FOOTBALL_API_KEY if FOOTBALL_API_KEY else "",
+    }
+    datos_partido = {"detalles": {}, "eventos": []}
+    
+    try:
+        url_fixture = f"{url_base}/fixtures?id=970030"
+        res = requests.get(url_fixture, headers=headers, timeout=4)
         
-        .btn {
-            background-color: var(--primary);
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            font-size: 1rem;
-            font-weight: bold;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: background 0.2s;
-            width: 100%;
-            margin-top: 15px;
-        }
-        .btn:hover { background-color: var(--primary-hover); }
-        .btn:disabled { background-color: #4b5563; cursor: not-allowed; }
-        
-        .options-container {
-            margin: 20px 0;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-        .btn-option {
-            background-color: #1e293b;
-            color: var(--text);
-            border: 1px solid #334155;
-            padding: 14px;
-            text-align: left;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 0.95rem;
-            transition: all 0.2s;
-        }
-        .btn-option:hover:not(:disabled) {
-            background-color: #334155;
-            border-color: #475569;
-        }
-        
-        .feedback {
-            padding: 12px;
-            border-radius: 8px;
-            font-weight: bold;
-            margin-top: 15px;
-            display: none;
-        }
-        .feedback.correct { background-color: rgba(16, 185, 129, 0.2); color: var(--success); display: block; }
-        .feedback.incorrect { background-color: rgba(239, 68, 68, 0.2); color: var(--error); display: block; }
-        
-        .scoreboard {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 20px;
-            font-size: 0.9rem;
-            background: #1e293b;
-            padding: 10px 15px;
-            border-radius: 8px;
-        }
-        
-        .loader {
-            border: 4px solid #1e293b;
-            border-top: 4px solid var(--primary);
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-            margin: 20px auto;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-    </style>
-</head>
-<body>
-
-    <div class="container">
-        <div id="scr-menu" class="screen active">
-            <h1>⚽ Golazo IA</h1>
-            <p>Trivia en tiempo real impulsada por Grok-2 y estadísticas en vivo de la Final de Qatar 2022.</p>
-            <button class="btn" onclick="iniciarJuego()">Iniciar Trivia 🚀</button>
-        </div>
-
-        <div id="scr-loading" class="screen">
-            <h1>Consultando Historial...</h1>
-            <div class="loader"></div>
-            <p>Conectando con la API de fútbol y generando preguntas personalizadas con IA...</p>
-        </div>
-
-        <div id="scr-quiz" class="screen">
-            <div class="scoreboard">
-                <span id="quiz-progress">Pregunta: 0/0</span>
-                <span id="local-score" style="color: var(--success); font-weight: bold;">0 pts</span>
-            </div>
-            <h3 id="box-pregunta" style="text-align: left; line-height: 1.4;">Cargando pregunta...</h3>
-            <div id="container-options" class="options-container"></div>
-            <div id="box-feedback" class="feedback"></div>
-            <button id="btn-next-action" class="btn" style="display: none;" onclick="avanzarPregunta()">Siguiente Pregunta ➡️</button>
-        </div>
-
-        <div id="scr-results" class="screen">
-            <h1>🏆 ¡Fin de la Partida!</h1>
-            <p id="box-final-msg">Completaste la trivia mundialista de Golazo IA.</p>
-            <h2 id="box-final-score" style="color: var(--success); font-size: 2.5rem; margin: 20px 0;">0 pts</h2>
-            <button class="btn" onclick="cambiarPantalla('scr-menu')">Volver a Jugar 🔄</button>
-        </div>
-    </div>
-
-    <script>
-        let preguntasPartida = [];
-        let indicePreguntaActual = 0;
-        let puntosLocal = 0;
-        let preguntaActualObj = null;
-
-        function cambiarPantalla(pantallaId) {
-            document.querySelectorAll('.screen').forEach(scr => scr.classList.remove('active'));
-            document.getElementById(pantallaId).classList.add('active');
-        }
-
-        async function iniciarJuego() {
-            cambiarPantalla("scr-loading");
-            puntosLocal = 0;
-            indicePreguntaActual = 0;
-            document.getElementById("local-score").innerText = "0 pts";
-
-            try {
-                // RUTA REESCRITA EN VERCEL
-                const respuesta = await fetch("/api/trivias");
-                if (!respuesta.ok) {
-                    throw new Error("Error en la respuesta del servidor");
+        if res.status_code == 200:
+            datos_json = res.json()
+            if "response" in datos_json and len(datos_json["response"]) > 0:
+                partido = datos_json["response"][0]
+                
+                datos_partido["detalles"] = {
+                    "local": partido["teams"]["home"]["name"],
+                    "visitante": partido["teams"]["away"]["name"],
+                    "goles_local": partido["goals"]["home"],
+                    "goles_visitante": partido["goals"]["away"],
+                    "estadio": partido["fixture"]["venue"]["name"],
+                    "arbitro": partido["fixture"]["referee"]
                 }
                 
-                const datos = await respuesta.json();
+                for evento in partido.get("events", [])[:15]:
+                    datos_partido["eventos"].append({
+                        "tiempo": evento["time"]["elapsed"],
+                        "equipo": evento["team"]["name"],
+                        "jugador": evento["player"]["name"] if evento.get("player") else "Desconocido",
+                        "tipo": evento["type"],
+                        "detalle": evento["detail"]
+                    })
+    except Exception:
+        pass
+        
+    return datos_partido
+
+# --- ENDPOINT DE CONSULTA ---
+@app.get("/api/trivias")
+async def obtener_trivias_http():
+    if not GROK_API_KEY:
+        return {"preguntas": random.sample(BANCO_RESPALDO, len(BANCO_RESPALDO))}
+
+    contexto_mundial = obtener_datos_final_mundo()
+    
+    if not contexto_mundial.get("detalles"):
+        contexto_mundial = {
+            "detalles": {"local": "Argentina", "visitante": "Francia", "goles_local": 3, "goles_visitante": 3, "estadio": "Lusail Iconic Stadium"},
+            "eventos": [
+                {"tiempo": 23, "equipo": "Argentina", "jugador": "Lionel Messi", "tipo": "Goal"},
+                {"tiempo": 36, "equipo": "Argentina", "jugador": "Ángel Di María", "tipo": "Goal"},
+                {"tiempo": 80, "equipo": "Francia", "jugador": "Kylian Mbappé", "tipo": "Goal"}
+            ]
+        }
+
+    try:
+        url_grok = "https://api.x.ai/v1/chat/completions"  # <-- Endpoint oficial corregido
+        headers_grok = {
+            "Authorization": f"Bearer {GROK_API_KEY}",
+            "Content-Type": "application/json"
+        }
+        
+        prompt_sistema = (
+            "Sos un historiador deportivo experto en Copas del Mundo. Tu única tarea es responder con un objeto JSON válido. "
+            "Este JSON debe tener una clave única llamada 'preguntas' que contenga un array de objetos. "
+            "No devuelvas bloques Markdown ni texto explicativo extra."
+        )
+        
+        prompt_usuario = (
+            f"Basándote estrictamente en este JSON con datos reales de la Final de Qatar 2022 extraídos de la API: {json.dumps(contexto_mundial)}. "
+            "Generá un array de exactamente 12 preguntas de trivia variadas sobre este partido. "
+            "Estructura requerida por objeto del array: pregunta, opciones (array de 3 strings), correcta (debe coincidir exactamente con una opción)."
+        )
+
+        payload = {
+            "model": "grok-2", 
+            "response_format": {"type": "json_object"},
+            "messages": [
+                {"role": "system", "content": prompt_sistema},
+                {"role": "user", "content": prompt_usuario}
+            ],
+            "temperature": 0.7
+        }
+
+        res = requests.post(url_grok, json=payload, headers=headers_grok, timeout=6)
+        
+        if res.status_code == 200:
+            datos_api = res.json()
+            texto_json = datos_api["choices"]["message"]["content"]
+            datos_finales = json.loads(texto_json)
+            
+            if "preguntas" in datos_finales and len(datos_finales["preguntas"]) > 0:
+                preguntas_mezcladas = datos_finales["preguntas"]
+                random.shuffle(preguntas_mezcladas)
+                return {"preguntas": preguntas_mezcladas}
                 
-                if (datos && datos.preguntas && datos.preguntas.length > 0) {
-                    preguntasPartida = datos.preguntas;
-                    cambiarPantalla("scr-quiz");
-                    renderizarPreguntaActual();
-                } else {
-                    alert("No se pudieron cargar las preguntas de la IA. Reintentá.");
-                    cambiarPantalla("scr-menu");
-                }
-            } catch (error) {
-                console.error("Error al iniciar la trivia:", error);
-                alert("Ocurrió un error al conectar con el servidor de IA.");
-                cambiarPantalla("scr-menu");
-            }
-        }
-
-        function renderizarPreguntaActual() {
-            document.getElementById("box-feedback").className = "feedback";
-            document.getElementById("box-feedback").style.display = "none";
-            document.getElementById("btn-next-action").style.display = "none";
-
-            preguntaActualObj = preguntasPartida[indicePreguntaActual];
-            
-            document.getElementById("quiz-progress").innerText = `Pregunta: ${indicePreguntaActual + 1}/${preguntasPartida.length}`;
-            document.getElementById("box-pregunta").innerText = preguntaActualObj.pregunta;
-
-            const containerOptions = document.getElementById("container-options");
-            containerOptions.innerHTML = "";
-
-            preguntaActualObj.opciones.forEach(opcion => {
-                const btn = document.createElement("button");
-                btn.className = "btn-option";
-                btn.innerText = opcion;
-                btn.onclick = () => verificarRespuesta(opcion);
-                containerOptions.appendChild(btn);
-            });
-        }
-
-        function verificarRespuesta(opcionSeleccionada) {
-            document.querySelectorAll(".btn-option").forEach(b => b.disabled = true);
-            const feedback = document.getElementById("box-feedback");
-            
-            if (opcionSeleccionada === preguntaActualObj.correcta) {
-                feedback.innerText = "¡Correcto! 🚀";
-                feedback.className = "feedback correct";
-                puntosLocal += 10;
-                document.getElementById("local-score").innerText = `${puntosLocal} pts`;
-            } else {
-                feedback.innerText = `Incorrecto. La respuesta correcta era: ${preguntaActualObj.correcta}`;
-                feedback.className = "feedback incorrect";
-            }
-
-            const esUltima = (indicePreguntaActual === preguntasPartida.length - 1);
-            document.getElementById("btn-next-action").innerText = esUltima ? "Ver Resultados Finales 🏁" : "Siguiente Pregunta ➡️";
-            document.getElementById("btn-next-action").style.display = "block";
-        }
-
-        function avanzarPregunta() {
-            indicePreguntaActual++;
-            if (indicePreguntaActual < preguntasPartida.length) {
-                renderizarPreguntaActual();
-            } else {
-                document.getElementById("box-final-score").innerText = `${puntosLocal} pts`;
-                cambiarPantalla("scr-results");
-            }
-        }
-    </script>
-</body>
-</html>
+    except Exception:
+        pass
+    
+    copia_respaldo = list(BANCO_RESPALDO)
+    random.shuffle(copia_respaldo)
+    return {"preguntas": copia_respaldo}
