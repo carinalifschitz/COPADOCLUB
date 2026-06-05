@@ -40,7 +40,6 @@
         .screen { display: none; }
         .screen.active { display: block; }
         
-        /* Botones */
         .btn {
             background-color: var(--primary);
             color: white;
@@ -57,7 +56,6 @@
         .btn:hover { background-color: var(--primary-hover); }
         .btn:disabled { background-color: #4b5563; cursor: not-allowed; }
         
-        /* Opciones de Trivia */
         .options-container {
             margin: 20px 0;
             display: flex;
@@ -80,7 +78,6 @@
             border-color: #475569;
         }
         
-        /* Feedback */
         .feedback {
             padding: 12px;
             border-radius: 8px;
@@ -91,7 +88,6 @@
         .feedback.correct { background-color: rgba(16, 185, 129, 0.2); color: var(--success); display: block; }
         .feedback.incorrect { background-color: rgba(239, 68, 68, 0.2); color: var(--error); display: block; }
         
-        /* Marcador */
         .scoreboard {
             display: flex;
             justify-content: space-between;
@@ -102,7 +98,6 @@
             border-radius: 8px;
         }
         
-        /* Loader animado */
         .loader {
             border: 4px solid #1e293b;
             border-top: 4px solid var(--primary);
@@ -170,8 +165,8 @@
             document.getElementById("local-score").innerText = "0 pts";
 
             try {
-                // LLAMADA CORREGIDA: Apunta al endpoint de Vercel Zero-Config
-                const respuesta = await fetch("/api/index");
+                // RUTA REESCRITA EN VERCEL
+                const respuesta = await fetch("/api/trivias");
                 if (!respuesta.ok) {
                     throw new Error("Error en la respuesta del servidor");
                 }
@@ -194,21 +189,18 @@
         }
 
         function renderizarPreguntaActual() {
-            // Limpiar estados anteriores
             document.getElementById("box-feedback").className = "feedback";
             document.getElementById("box-feedback").style.display = "none";
             document.getElementById("btn-next-action").style.display = "none";
 
             preguntaActualObj = preguntasPartida[indicePreguntaActual];
             
-            // Actualizar interfaz
             document.getElementById("quiz-progress").innerText = `Pregunta: ${indicePreguntaActual + 1}/${preguntasPartida.length}`;
             document.getElementById("box-pregunta").innerText = preguntaActualObj.pregunta;
 
             const containerOptions = document.getElementById("container-options");
             containerOptions.innerHTML = "";
 
-            // Renderizar las opciones distribuidas de forma dinámica
             preguntaActualObj.opciones.forEach(opcion => {
                 const btn = document.createElement("button");
                 btn.className = "btn-option";
@@ -219,7 +211,6 @@
         }
 
         function verificarRespuesta(opcionSeleccionada) {
-            // Bloquear los botones para que no se cambie la respuesta
             document.querySelectorAll(".btn-option").forEach(b => b.disabled = true);
             const feedback = document.getElementById("box-feedback");
             
@@ -243,7 +234,6 @@
             if (indicePreguntaActual < preguntasPartida.length) {
                 renderizarPreguntaActual();
             } else {
-                // Pantalla de puntuación final
                 document.getElementById("box-final-score").innerText = `${puntosLocal} pts`;
                 cambiarPantalla("scr-results");
             }
