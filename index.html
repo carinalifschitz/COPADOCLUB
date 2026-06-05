@@ -124,7 +124,7 @@
             cambiarPantalla("scr-wait");
 
             try {
-                const respuesta = await fetch("/api/trivias");
+                const respuesta = await fetch("/api/index");
                 const datos = await respuesta.json();
                 preguntasPartida = datos.preguntas && datos.preguntas.length > 0 ? datos.preguntas : BANCO_NATIVO;
             } catch (error) {
