@@ -67,8 +67,10 @@ def obtener_datos_final_mundo():
         
     return datos_partido
 
-# --- ENDPOINT DE CONSULTA ---
+# --- ENDPOINTS MULTI-RUTA (EVITA EL NOT FOUND) ---
 @app.get("/api/trivias")
+@app.get("/trivias")
+@app.get("/")
 async def obtener_trivias_http():
     if not GROK_API_KEY:
         return {"preguntas": random.sample(BANCO_RESPALDO, len(BANCO_RESPALDO))}
@@ -86,7 +88,7 @@ async def obtener_trivias_http():
         }
 
     try:
-        url_grok = "https://api.x.ai/v1/chat/completions"  # <-- Endpoint oficial corregido
+        url_grok = "https://api.x.ai/v1/chat/completions"
         headers_grok = {
             "Authorization": f"Bearer {GROK_API_KEY}",
             "Content-Type": "application/json"
