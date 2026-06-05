@@ -68,7 +68,7 @@ app.add_middleware(
 )
 
 # --- EL ENDPOINT DE LAS TRIVIAS ---
-@app.get("/api/trivias")
+@app.get("/api/index")
 async def obtener_trivias_http():
     if not GROK_API_KEY:
         return {"preguntas": random.sample(BANCO_RESPALDO, len(BANCO_RESPALDO))}
