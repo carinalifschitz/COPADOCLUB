@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fútbol Trivia IA</title>
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --card-bg: #151f32;
+            --primary: #2563eb;
+            --success: #10b981;
+            --error: #ef4444;
+            --text: #f3f4f6;
+            --text-muted: #6b7280;
+        }
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .container {
+            background-color: var(--card-bg);
+            padding: 30px;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            width: 100%;
+            max-width: 550px;
+        }
+        h1 { text-align: center; color: #3b82f6; margin-top: 0; }
+        .screen { display: none; }
+        .active { display: block; }
+        .btn {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 14px;
+            font-size: 1rem;
+            font-weight: bold;
+            border-radius: 10px;
+            cursor: pointer;
+            width: 100%;
+            margin-bottom: 12px;
+            transition: all 0.2s;
+        }
+        .btn:hover { opacity: 0.9; }
+        .btn-option {
+            background-color: #1f293d;
+            text-align: left;
+            border: 1px solid #374151;
+            color: var(--text);
+        }
+        .btn-option:hover { background-color: #2d3748; }
+        .btn-next {
+            background-color: #10b981;
+            display: none;
+            margin-top: 15px;
+        }
+        .question { font-size: 1.25rem; font-weight: bold; margin-bottom: 25px; line-height: 1.4; }
+        .feedback { text-align: center; font-size: 1.2rem; font-weight: bold; margin: 15px 0; min-height: 28px; }
+        .correct { color: var(--success); }
+        .incorrect { color: var(--error); }
+        .ranking { margin-top: 25px; border-top: 1px solid #374151; padding-top: 15px; text-align: center; }
+        .ranking h3 { margin: 0 0 5px 0; font-size: 1rem; color: var(--text-muted); }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>⚽ Fútbol Trivia IA</h1>
+
+        <!-- MENU -->
+        <div id="scr-menu" class="screen active">
+            <button class="btn" onclick="iniciarJuego()">Jugar Modo Trivia (40 Preguntas)</button>
+        </div>
+
+        <!-- CARGANDO -->
+        <div id="scr-wait" class="screen">
+            <p style="text-align:center; font-size: 1.2rem;">Generando preguntas en tiempo real con IA...</p>
+        </div>
+
+        <!-- TRIVIA -->
+        <div id="scr-trivia" class="screen">
+            <div id="box-question" class="question"></div>
+            <div id="box-options"></div>
+            <div id="box-feedback" class="feedback"></div>
+            <button id="btn-next-action" class="btn btn-next" onclick="avanzarPregunta()">Siguiente Pregunta ➡️</button>
+        </div>
+
+        <!-- MARCADOR -->
+        <div class="ranking">
+            <h3>🏆 Puntuación Actual</h3>
+            <strong id="local-score" style="font-size: 1.3rem; color: var(--success);">0 pts</strong>
+        </div>
+    </div>
+
+    <script>
+        let preguntasPartida = [];
+        let indicePreguntaActual = 0;
+        let preguntaActualObj = null;
+        let puntosLocal = 0;
+
+        const BANCO_NATIVO = [
+            {"pregunta": "¿Qué equipo venció al Real Madrid en la Intercontinental del 2000?", "opciones": ["Boca Juniors", "River Plate", "Palmeiras"], "correcta": "Boca Juniors"},
+            {"pregunta": "¿Quién es el máximo goleador histórico de la Selección Argentina?", "opciones": ["Lionel Messi", "Gabriel Batistuta", "Diego Maradona"], "correcta": "Lionel Messi"},
+            {"pregunta": "¿En qué club europeo debutó el Kun Agüero?", "opciones": ["Atlético de Madrid", "Manchester City", "Barcelona"], "correcta": "Atlético de Madrid"}
+        ];
+
+        function cambiarPantalla(id) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+        }
+
+        async function iniciarJuego() {
+            puntosLocal = 0;
+            indicePreguntaActual = 0;
+            document.getElementById("local-score").innerText = "0 pts";
+            cambiarPantalla("scr-wait");
+
+            try {
+                const respuesta = await fetch("/api/trivias");
+                const datos = await respuesta.json();
+                preguntasPartida = datos.preguntas && datos.preguntas.length > 0 ? datos.preguntas : BANCO_NATIVO;
+            } catch (error) {
+                console.log("Error de conexión, usando banco local.");
+                preguntasPartida = BANCO_NATIVO;
+            }
+
+            renderizarPreguntaActual();
+        }
+
+        function renderizarPreguntaActual() {
+            cambiarPantalla("scr-trivia");
+            preguntaActualObj = preguntasPartida[indicePreguntaActual];
+
+            document.getElementById("box-question").innerText = `[${indicePreguntaActual + 1}/${preguntasPartida.length}] ${preguntaActualObj.pregunta}`;
+            
+            const containerOptions = document.getElementById("box-options");
+            containerOptions.innerHTML = "";
+            document.getElementById("box-feedback").innerText = "";
+            document.getElementById("btn-next-action").style.display = "none";
+
+            preguntaActualObj.opciones.forEach(opcion => {
+                const btn = document.createElement("button");
+                btn.className = "btn btn-option";
+                btn.innerText = opcion;
+                btn.onclick = () => verificarRespuesta(opcion);
+                containerOptions.appendChild(btn);
+            });
+        }
+
+        function verificarRespuesta(opcionSeleccionada) {
+            document.querySelectorAll(".btn-option").forEach(b => b.disabled = true);
+            const feedback = document.getElementById("box-feedback");
+            
+            if (opcionSeleccionada === preguntaActualObj.correcta) {
+                feedback.innerText = "¡Correcto! 🚀";
+                feedback.className = "feedback correct";
+                puntosLocal += 10;
+                document.getElementById("local-score").innerText = `${puntosLocal} pts`;
+            } else {
+                feedback.innerText = `Incorrecto. Era: ${preguntaActualObj.correcta}`;
+                feedback.className = "feedback incorrect";
+            }
+
+            const esUltima = (indicePreguntaActual === preguntasPartida.length - 1);
+            document.getElementById("btn-next-action").innerText = esUltima ? "Ver Resultados Finales 🏁" : "Siguiente Pregunta ➡️";
+            document.getElementById("btn-next-action").style.display = "block";
+        }
+
+        function avanzarPregunta() {
+            indicePreguntaActual++;
+            if (indicePreguntaActual < preguntasPartida.length) {
+                renderizarPreguntaActual();
+            } else {
+                alert(`¡Juego terminado! Tu puntuación final es: ${puntosLocal} pts.`);
+                cambiarPantalla("scr-menu");
+            }
+        }
+    </script>
+</body>
+</html>
