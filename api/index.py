@@ -30,7 +30,7 @@ BANCO_RESPALDO = [
 
 def obtener_datos_final_mundo():
     # Buscamos por la fecha exacta de la final y el ID de la liga del mundial (league=1, season=2022)
-    url = "https://v3.football.api-sports.io/fixtures?date=2020-04-04&league=1&season=2020"
+    url = "https://v3.football.api-sports.io/fixtures?team=451&last=1"
     
     headers = {
         "x-apisports-key": FOOTBALL_API_KEY if FOOTBALL_API_KEY else "",
