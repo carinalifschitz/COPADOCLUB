@@ -30,7 +30,7 @@ BANCO_RESPALDO = [
 
 def obtener_datos_final_mundo():
     # ID Corregido para la Final de Qatar 2022 (Argentina vs Francia)
-    url = "https://v3.football.api-sports.io/fixtures?id=864931"
+    url = "https://v3.football.api-sports.io/fixtures?id=970031"
     
     headers = {
         "x-apisports-key": FOOTBALL_API_KEY if FOOTBALL_API_KEY else "",
@@ -104,7 +104,7 @@ async def probar_apis():
 
     # 1. Probar la consulta del partido real (Final Qatar ID: 970030)
     try:
-        url = "https://v3.football.api-sports.io/fixtures?id=864931"
+        url = "https://v3.football.api-sports.io/fixtures?id=970031"
         headers = {
             "x-apisports-key": FOOTBALL_API_KEY if FOOTBALL_API_KEY else "",
             "x-rapidapi-key": FOOTBALL_API_KEY if FOOTBALL_API_KEY else "",
