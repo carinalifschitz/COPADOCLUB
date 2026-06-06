@@ -29,7 +29,8 @@ BANCO_RESPALDO = [
 ]
 
 def obtener_datos_final_mundo():
-    url_base = "https://api-sports.io"
+    # Usamos directamente el dominio correcto del endpoint v3
+    url_base = "https://v3.football.api-sports.io"
     headers = {
         "x-rapidapi-host": "v3.football.api-sports.io",
         "x-rapidapi-key": FOOTBALL_API_KEY if FOOTBALL_API_KEY else "",
@@ -38,36 +39,39 @@ def obtener_datos_final_mundo():
     datos_partido = {"detalles": {}, "eventos": []}
     
     try:
+        # Petición directa al fixture de la final
         url_fixture = f"{url_base}/fixtures?id=970030"
-        res = requests.get(url_fixture, headers=headers, timeout=4)
+        res = requests.get(url_fixture, headers=headers, timeout=5)
         
         if res.status_code == 200:
-            datos_json = res.json()
-            if "response" in datos_json and len(datos_json["response"]) > 0:
-                partido = datos_json["response"][0]
-                
-                datos_partido["detalles"] = {
-                    "local": partido["teams"]["home"]["name"],
-                    "visitante": partido["teams"]["away"]["name"],
-                    "goles_local": partido["goals"]["home"],
-                    "goles_visitante": partido["goals"]["away"],
-                    "estadio": partido["fixture"]["venue"]["name"],
-                    "arbitro": partido["fixture"]["referee"]
-                }
-                
-                for evento in partido.get("events", [])[:15]:
-                    datos_partido["eventos"].append({
-                        "tiempo": evento["time"]["elapsed"],
-                        "equipo": evento["team"]["name"],
-                        "jugador": evento["player"]["name"] if evento.get("player") else "Desconocido",
-                        "tipo": evento["type"],
-                        "detalle": evento["detail"]
-                    })
+            # Validamos que la respuesta sea realmente un JSON antes de procesar
+            content_type = res.headers.get("Content-Type", "")
+            if "application/json" in content_type:
+                datos_json = res.json()
+                if "response" in datos_json and len(datos_json["response"]) > 0:
+                    partido = datos_json["response"][0]
+                    
+                    datos_partido["detalles"] = {
+                        "local": partido["teams"]["home"]["name"],
+                        "visitante": partido["teams"]["away"]["name"],
+                        "goles_local": partido["goals"]["home"],
+                        "goles_visitante": partido["goals"]["away"],
+                        "estadio": partido["fixture"]["venue"]["name"],
+                        "arbitro": partido["fixture"]["referee"]
+                    }
+                    
+                    for evento in partido.get("events", [])[:15]:
+                        datos_partido["eventos"].append({
+                            "tiempo": evento["time"]["elapsed"],
+                            "equipo": evento["team"]["name"],
+                            "jugador": evento["player"]["name"] if evento.get("player") else "Desconocido",
+                            "tipo": evento["type"],
+                            "detalle": evento["detail"]
+                        })
     except Exception:
         pass
         
     return datos_partido
-
 
 # --- NUEVO: ENDPOINT PARA MOSTRAR LA WEB ---
 @app.get("/", response_class=HTMLResponse)
