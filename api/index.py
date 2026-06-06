@@ -35,21 +35,22 @@ def obtener_datos_final_mundo():
                     "visitante": p["teams"]["away"]["name"]
                 }
                 
-                # Extracción detallada de jugadores
-                for team in p.get("players", []):
-                    for player in team.get("players", []):
-                        stats = player.get("statistics", [{}])[0]
-                        resultado["jugadores"].append({
-                            "nombre": player["player"]["name"],
-                            "goles": stats.get("goals", {}).get("total", 0),
-                            "faltas": stats.get("fouls", {}).get("committed", 0),
-                            "atajadas": stats.get("goalkeeper", {}).get("saves", 0)
-                        })
+                # Extracción mejorada de jugadores
+                # Buscamos en el bloque 'players' del objeto partido
+                if "players" in p:
+                    for team in p["players"]:
+                        for player in team.get("players", []):
+                            stats = player.get("statistics", [{}])[0]
+                            resultado["jugadores"].append({
+                                "nombre": player["player"]["name"],
+                                "goles": stats.get("goals", {}).get("total", 0),
+                                "atajadas": stats.get("goalkeeper", {}).get("saves", 0)
+                            })
     except Exception as e:
         resultado["error_api"] = str(e)
     return resultado
 
-@app.get("/", response_class=HTMLResponse)
+@app.get("/")
 async def root():
     ruta_html = os.path.join(os.path.dirname(__file__), "index.html")
     with open(ruta_html, "r", encoding="utf-8") as f:
@@ -57,13 +58,12 @@ async def root():
 
 @app.get("/api/test")
 async def probar_apis():
-    # 1. Obtener datos de fútbol detallados
-    datos_futbol = obtener_datos_final_mundo()
+    datos = obtener_datos_final_mundo()
+    grok_res = {"status": "No configurado"}
     
-    # 2. Test Grok para diagnosticar el error 400
-    grok_res = {"status": "No intentado"}
     if GROK_API_KEY:
         try:
+            # Test ultra simple para descartar errores de formato
             res = requests.post(
                 "https://api.x.ai/v1/chat/completions",
                 headers={"Authorization": f"Bearer {GROK_API_KEY}", "Content-Type": "application/json"},
@@ -73,24 +73,25 @@ async def probar_apis():
                 },
                 timeout=10
             )
-            grok_res = {"status": res.status_code, "body": res.json() if res.status_code == 200 else res.text}
+            grok_res = {"status": res.status_code, "body": res.text}
         except Exception as e:
             grok_res = {"error": str(e)}
             
-    return {"grok": grok_res, "datos_futbol": datos_futbol}
+    return {"grok": grok_res, "datos_futbol": datos}
 
 @app.get("/api/trivias")
 async def obtener_trivias():
     datos = obtener_datos_final_mundo()
     
-    # Preparamos los datos
-    info_ia = json.dumps(datos.get('jugadores', [])[:15])
+    # Reducimos los datos para la IA: solo los primeros 10 jugadores para evitar errores de longitud
+    info_jugadores = datos.get('jugadores', [])[:10]
+    prompt_contenido = f"Crea 3 preguntas de trivia basadas en estos jugadores de la final: {json.dumps(info_jugadores)}"
     
     payload = {
         "model": "grok-beta",
         "messages": [
-            {"role": "system", "content": "Responde SOLO JSON: {'preguntas': [{'pregunta': '', 'opciones': [], 'correcta': ''}]}"},
-            {"role": "user", "content": f"Crea 5 preguntas de trivia usando esta info de jugadores: {info_ia}"}
+            {"role": "system", "content": "Responde SOLO un JSON con la estructura: {'preguntas': [{'pregunta': '...', 'opciones': ['A', 'B', 'C'], 'correcta': '...'}]}"},
+            {"role": "user", "content": prompt_contenido}
         ]
     }
     
@@ -104,6 +105,6 @@ async def obtener_trivias():
         if res.status_code == 200:
             texto = res.json()["choices"][0]["message"]["content"].replace("```json", "").replace("```", "").strip()
             return json.loads(texto)
-        return {"error": f"Grok falló {res.status_code}", "detalle": res.text}
+        return {"preguntas": [], "error_debug": f"Grok {res.status_code}: {res.text}"}
     except Exception as e:
-        return {"error": str(e)}
+        return {"preguntas": [], "error_debug": str(e)}
