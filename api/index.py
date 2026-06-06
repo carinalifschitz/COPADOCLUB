@@ -35,8 +35,7 @@ def obtener_datos_final_mundo():
                     "visitante": p["teams"]["away"]["name"]
                 }
                 
-                # Extracción mejorada de jugadores
-                # Buscamos en el bloque 'players' del objeto partido
+                # Extracción detallada de jugadores
                 if "players" in p:
                     for team in p["players"]:
                         for player in team.get("players", []):
@@ -44,13 +43,14 @@ def obtener_datos_final_mundo():
                             resultado["jugadores"].append({
                                 "nombre": player["player"]["name"],
                                 "goles": stats.get("goals", {}).get("total", 0),
+                                "faltas": stats.get("fouls", {}).get("committed", 0),
                                 "atajadas": stats.get("goalkeeper", {}).get("saves", 0)
                             })
     except Exception as e:
         resultado["error_api"] = str(e)
     return resultado
 
-@app.get("/")
+@app.get("/", response_class=HTMLResponse)
 async def root():
     ruta_html = os.path.join(os.path.dirname(__file__), "index.html")
     with open(ruta_html, "r", encoding="utf-8") as f:
@@ -63,12 +63,12 @@ async def probar_apis():
     
     if GROK_API_KEY:
         try:
-            # Test ultra simple para descartar errores de formato
+            # CORRECCIÓN: Cambiado modelo a "grok-2"
             res = requests.post(
                 "https://api.x.ai/v1/chat/completions",
                 headers={"Authorization": f"Bearer {GROK_API_KEY}", "Content-Type": "application/json"},
                 json={
-                    "model": "grok-beta",
+                    "model": "grok-2", 
                     "messages": [{"role": "user", "content": "Hola"}]
                 },
                 timeout=10
@@ -83,14 +83,13 @@ async def probar_apis():
 async def obtener_trivias():
     datos = obtener_datos_final_mundo()
     
-    # Reducimos los datos para la IA: solo los primeros 10 jugadores para evitar errores de longitud
-    info_jugadores = datos.get('jugadores', [])[:10]
-    prompt_contenido = f"Crea 3 preguntas de trivia basadas en estos jugadores de la final: {json.dumps(info_jugadores)}"
+    info_jugadores = datos.get('jugadores', [])[:15]
+    prompt_contenido = f"Crea 5 preguntas de trivia basadas en estos jugadores: {json.dumps(info_jugadores)}"
     
     payload = {
-        "model": "grok-beta",
+        "model": "grok-2", # CORRECCIÓN: Cambiado modelo a "grok-2"
         "messages": [
-            {"role": "system", "content": "Responde SOLO un JSON con la estructura: {'preguntas': [{'pregunta': '...', 'opciones': ['A', 'B', 'C'], 'correcta': '...'}]}"},
+            {"role": "system", "content": "Responde SOLO JSON: {'preguntas': [{'pregunta': '', 'opciones': [], 'correcta': ''}]}"},
             {"role": "user", "content": prompt_contenido}
         ]
     }
@@ -105,6 +104,6 @@ async def obtener_trivias():
         if res.status_code == 200:
             texto = res.json()["choices"][0]["message"]["content"].replace("```json", "").replace("```", "").strip()
             return json.loads(texto)
-        return {"preguntas": [], "error_debug": f"Grok {res.status_code}: {res.text}"}
+        return {"error": f"Grok falló {res.status_code}", "detalle": res.text}
     except Exception as e:
-        return {"preguntas": [], "error_debug": str(e)}
+        return {"error": str(e)}
