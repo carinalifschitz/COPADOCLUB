@@ -86,18 +86,32 @@ async def obtener_interfaz():
 @app.get("/api/trivias")
 @app.get("/trivias")
 async def obtener_trivias_http():
+    # Si falta la clave de Grok, usamos el respaldo pero extendido para que no sea aburrido
     if not GROK_API_KEY:
-        return {"preguntas": random.sample(BANCO_RESPALDO, len(BANCO_RESPALDO))}
+        copia_respaldo = list(BANCO_RESPALDO)
+        random.shuffle(copia_respaldo)
+        return {"preguntas": copia_respaldo}
 
     contexto_mundial = obtener_datos_final_mundo()
     
-    if not contexto_mundial.get("detalles"):
+    # Si la API de fútbol falla o se agotan los créditos, usamos un contexto real hardcodeado
+    if not contexto_mundial.get("detalles") or len(contexto_mundial.get("eventos", [])) == 0:
         contexto_mundial = {
-            "detalles": {"local": "Argentina", "visitante": "Francia", "goles_local": 3, "goles_visitante": 3, "estadio": "Lusail Iconic Stadium"},
+            "detalles": {
+                "local": "Argentina", 
+                "visitante": "Francia", 
+                "goles_local": 3, 
+                "goles_visitante": 3, 
+                "estadio": "Lusail Iconic Stadium",
+                "arbitro": "Szymon Marciniak"
+            },
             "eventos": [
-                {"tiempo": 23, "equipo": "Argentina", "jugador": "Lionel Messi", "tipo": "Goal"},
-                {"tiempo": 36, "equipo": "Argentina", "jugador": "Ángel Di María", "tipo": "Goal"},
-                {"tiempo": 80, "equipo": "Francia", "jugador": "Kylian Mbappé", "tipo": "Goal"}
+                {"tiempo": 23, "equipo": "Argentina", "jugador": "Lionel Messi", "tipo": "Goal", "detalle": "Penalty"},
+                {"tiempo": 36, "equipo": "Argentina", "jugador": "Ángel Di María", "tipo": "Goal", "detalle": "Normal Goal"},
+                {"tiempo": 80, "equipo": "Francia", "jugador": "Kylian Mbappé", "tipo": "Goal", "detalle": "Penalty"},
+                {"tiempo": 81, "equipo": "Francia", "jugador": "Kylian Mbappé", "tipo": "Goal", "detalle": "Normal Goal"},
+                {"tiempo": 108, "equipo": "Argentina", "jugador": "Lionel Messi", "tipo": "Goal", "detalle": "Normal Goal"},
+                {"tiempo": 118, "equipo": "Francia", "jugador": "Kylian Mbappé", "tipo": "Goal", "detalle": "Penalty"}
             ]
         }
 
@@ -109,20 +123,20 @@ async def obtener_trivias_http():
         }
         
         prompt_sistema = (
-            "Sos un historiador deportivo experto en Copas del Mundo. Tu única tarea es responder con un objeto JSON válido. "
-            "Este JSON debe tener una clave única llamada 'preguntas' que contenga un array de objetos. "
-            "No devuelvas bloques Markdown ni texto explicativo extra."
+            "Sos un historiador deportivo experto en la Copa del Mundo Qatar 2022. Tu única tarea es responder con un objeto JSON válido. "
+            "El JSON debe tener una estructura exacta con una clave llamada 'preguntas' que contenga un array de objetos. "
+            "Cada objeto debe tener: 'pregunta', 'opciones' (un array de exactamente 3 strings) y 'correcta' (un string que coincida exactamente con una de las opciones). "
+            "No incluyas texto fuera del JSON, ni bloques de código markdown."
         )
         
         prompt_usuario = (
-            f"Basándote estrictamente en este JSON con datos reales de la Final de Qatar 2022 extraídos de la API: {json.dumps(contexto_mundial)}. "
-            "Generá un array de exactamente 12 preguntas de trivia variadas sobre este partido. "
-            "Estructura requerida por objeto del array: pregunta, opciones (array de 3 strings), correcta (debe coincidir exactamente con una opción)."
+            f"Basándote en estos datos históricos reales del partido: {json.dumps(contexto_mundial)}. "
+            "Generá exactamente 12 preguntas de trivia variadas sobre las incidencias, goles, tiempos, jugadores y detalles del partido. "
+            "Asegurate de cambiar el orden de la opción correcta en las respuestas para que no siempre sea la primera."
         )
 
         payload = {
             "model": "grok-2", 
-            "response_format": {"type": "json_object"},
             "messages": [
                 {"role": "system", "content": prompt_sistema},
                 {"role": "user", "content": prompt_usuario}
@@ -130,11 +144,22 @@ async def obtener_trivias_http():
             "temperature": 0.7
         }
 
-        res = requests.post(url_grok, json=payload, headers=headers_grok, timeout=6)
+        res = requests.post(url_grok, json=payload, headers=headers_grok, timeout=8)
         
         if res.status_code == 200:
             datos_api = res.json()
-            texto_json = datos_api["choices"]["message"]["content"]
+            texto_json = datos_api["choices"]["message"]["content"].strip()
+            
+            # --- LIMPIADOR DE MARKDOWN EMERGENCIAL ---
+            # Si Grok devuelve el JSON envuelto en ```json ... ``` lo limpiamos manualmente
+            if texto_json.startswith("```"):
+                lineas = texto_json.split("\n")
+                if lineas[0].startswith("```"):
+                    lineas = lineas[1:]
+                if lineas[-1].startswith("```"):
+                    lineas = lineas[:-1]
+                texto_json = "\n".join(lineas).strip()
+            
             datos_finales = json.loads(texto_json)
             
             if "preguntas" in datos_finales and len(datos_finales["preguntas"]) > 0:
@@ -142,9 +167,11 @@ async def obtener_trivias_http():
                 random.shuffle(preguntas_mezcladas)
                 return {"preguntas": preguntas_mezcladas}
                 
-    except Exception:
+    except Exception as e:
+        print(f"Error detectado en la generación: {str(e)}")
         pass
     
+    # Banco de respaldo barajado por si ocurre algún fallo de conexión con las APIs externas
     copia_respaldo = list(BANCO_RESPALDO)
     random.shuffle(copia_respaldo)
     return {"preguntas": copia_respaldo}
