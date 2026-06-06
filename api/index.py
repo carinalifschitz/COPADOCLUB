@@ -91,41 +91,51 @@ async def obtener_interfaz():
         return "<h1>Error: No se encontró el archivo index.html dentro de la carpeta api/</h1>"
 # --- ENDPOINT DE DIAGNÓSTICO (Para saber qué falla) ---
 @app.get("/api/test")
+# --- ENDPOINT DE DIAGNÓSTICO DEFINITIVO ---
+@app.get("/api/test")
 async def probar_apis():
     reporte = {
         "estado_credenciales": {
             "grok_key_detectada": GROK_API_KEY is not None and GROK_API_KEY != "",
             "football_key_detectada": FOOTBALL_API_KEY is not None and FOOTBALL_API_KEY != ""
         },
-        "prueba_api_futbol": {"estado": "Sin probar", "detalles": None, "error": None},
-        "prueba_grok_ia": {"estado": "Sin probar", "detalles": None, "error": None}
+        "prueba_api_futbol_partido": {"estado": "Sin probar", "datos_recuperados": None, "error": None},
+        "prueba_grok_ia": {"estado": "Sin probar", "respuesta_grok": None, "error": None}
     }
 
-# 1. Probar API de Fútbol (Modo Inspección de Bloqueo)
+    # 1. Probar la consulta del partido real (Final Qatar ID: 970030)
     try:
-        url_base = "https://v3.football.api-sports.io"
+        url = "https://v3.football.api-sports.io/fixtures?id=970030"
         headers = {
-            "x-rapidapi-host": "v3.football.api-sports.io",
-            "x-rapidapi-key": FOOTBALL_API_KEY if FOOTBALL_API_KEY else "",
             "x-apisports-key": FOOTBALL_API_KEY if FOOTBALL_API_KEY else "",
+            "x-rapidapi-key": FOOTBALL_API_KEY if FOOTBALL_API_KEY else "",
             "User-Agent": "Mozilla/5.0"
         }
-        # Intentamos pegarle al endpoint de estado
-        res = requests.get(f"{url_base}/status", headers=headers, timeout=5)
+        res = requests.get(url, headers=headers, timeout=6)
+        reporte["prueba_api_futbol_partido"]["estado"] = f"HTTP {res.status_code}"
         
-        reporte["prueba_api_futbol"]["estado"] = f"HTTP {res.status_code}"
-        
-        # Guardamos los primeros 300 caracteres de lo que sea que responda el servidor
-        texto_respuesta = res.text.strip()
-        reporte["prueba_api_futbol"]["detalles"] = texto_respuesta[:300]
-        
+        if res.status_code == 200:
+            datos_json = res.json()
+            # Si la API devuelve un error interno en su JSON (ej. límite de cuota superado)
+            if "errors" in datos_json and datos_json["errors"]:
+                reporte["prueba_api_futbol_partido"]["error"] = datos_json["errors"]
+            elif "response" in datos_json and len(datos_json["response"]) > 0:
+                # Si encuentra el partido, guardamos un resumen de lo que capturó
+                partido = datos_json["response"][0]
+                reporte["prueba_api_futbol_partido"]["datos_recuperados"] = {
+                    "partido": f"{partido['teams']['home']['name']} vs {partido['teams']['away']['name']}",
+                    "goles": f"{partido['goals']['home']}-{partido['goals']['away']}",
+                    "cantidad_eventos": len(partido.get("events", []))
+                }
+            else:
+                reporte["prueba_api_futbol_partido"]["error"] = "La API respondió bien, pero el array 'response' vino vacío. ¿El ID 970030 está disponible en tu plan?"
     except Exception as e:
-        reporte["prueba_api_futbol"]["estado"] = "Error de conexión duro"
-        reporte["prueba_api_futbol"]["error"] = str(e)
+        reporte["prueba_api_futbol_partido"]["estado"] = "Error de ejecución en Python"
+        reporte["prueba_api_futbol_partido"]["error"] = str(e)
 
     # 2. Probar Grok IA
     if not GROK_API_KEY:
-        reporte["prueba_grok_ia"]["estado"] = "No se probó porque falta la clave"
+        reporte["prueba_grok_ia"]["estado"] = "Falta la clave en Vercel"
     else:
         try:
             url_grok = "https://api.x.ai/v1/chat/completions"
@@ -134,19 +144,21 @@ async def probar_apis():
                 "Content-Type": "application/json"
             }
             payload = {
-                "model": "grok-2", 
+                "model": "grok-2-1212", 
                 "messages": [{"role": "user", "content": "Responde con la palabra OK"}],
                 "max_tokens": 5
             }
-            res = requests.post(url_grok, json=payload, headers=headers_grok, timeout=5)
+            res = requests.post(url_grok, json=payload, headers=headers_grok, timeout=6)
             reporte["prueba_grok_ia"]["estado"] = f"HTTP {res.status_code}"
-            reporte["prueba_grok_ia"]["detalles"] = res.json()
+            if res.status_code == 200:
+                reporte["prueba_grok_ia"]["respuesta_grok"] = res.json()["choices"][0]["message"]["content"].strip()
+            else:
+                reporte["prueba_grok_ia"]["error"] = res.json()
         except Exception as e:
-            reporte["prueba_grok_ia"]["estado"] = "Error de conexión"
+            reporte["prueba_grok_ia"]["estado"] = "Error de conexión con X.AI"
             reporte["prueba_grok_ia"]["error"] = str(e)
 
     return reporte
-
 # --- ENDPOINT DE DATOS DE LA TRIVIA ---
 @app.get("/api/trivias")
 @app.get("/trivias")
