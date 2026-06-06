@@ -1,11 +1,12 @@
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
 import json
 import os
 import requests
 import random
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
 
+# Definición de la instancia FastAPI en el nivel superior (esto es lo que Vercel busca)
 app = FastAPI()
 
 app.add_middleware(
@@ -54,13 +55,11 @@ def obtener_datos_final_mundo():
     return datos_partido
 
 @app.get("/")
-@app.get("/api")
-async def home():
+async def root():
     return HTMLResponse("<h1>Servidor Activo</h1>")
 
 @app.get("/api/test")
 async def probar_apis():
-    # Devuelve el objeto completo de datos para verificar su estructura
     return obtener_datos_final_mundo()
 
 @app.get("/api/trivias")
@@ -69,15 +68,14 @@ async def obtener_trivias():
         return {"error": "API Key no configurada"}
 
     contexto = obtener_datos_final_mundo()
-    
     try:
         url_grok = "https://api.x.ai/v1/chat/completions"
         headers = {"Authorization": f"Bearer {GROK_API_KEY}", "Content-Type": "application/json"}
         payload = {
             "model": "grok-beta",
             "messages": [
-                {"role": "system", "content": "Sos experto en fútbol. Responde solo con JSON: {'preguntas': [{'pregunta': '', 'opciones': [], 'correcta': ''}]}"},
-                {"role": "user", "content": f"Trivia sobre estos datos: {json.dumps(contexto)}"}
+                {"role": "system", "content": "Responde solo con JSON: {'preguntas': [{'pregunta': '', 'opciones': [], 'correcta': ''}]}"},
+                {"role": "user", "content": f"Trivia detallada sobre los datos: {json.dumps(contexto)}"}
             ],
             "temperature": 0.7
         }
@@ -87,5 +85,5 @@ async def obtener_trivias():
 ```", "").strip()
             return json.loads(texto)
     except Exception as e:
-        return {"error": f"Error generando trivia: {str(e)}"}
-    return {"error": "Error general"}
+        return {"error": f"Error: {str(e)}"}
+    return {"error": "Error al generar trivia"}
