@@ -50,7 +50,12 @@ def obtener_datos_final_mundo():
 
 @app.get("/")
 async def root():
-    return HTMLResponse("<h1>Servidor Activo</h1>")
+    ruta_html = os.path.join(os.path.dirname(__file__), "index.html")
+    try:
+        with open(ruta_html, "r", encoding="utf-8") as f:
+            return f.read()
+    except Exception as e:
+        return f"<h1>Error: No se pudo cargar el archivo index.html. Detalle: {str(e)}</h1>"
 
 @app.get("/api/test")
 async def probar_apis():
