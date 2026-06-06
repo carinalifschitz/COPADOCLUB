@@ -146,7 +146,7 @@ async def probar_apis():
                 "Content-Type": "application/json"
             }
             payload = {
-                "model": "grok-2-1212", 
+                "model": "grok-4.3", 
                 "messages": [{"role": "user", "content": "Responde con la palabra OK"}],
                 "max_tokens": 5
             }
