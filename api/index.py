@@ -113,19 +113,26 @@ async def probar_apis():
         "prueba_grok_ia": {"estado": "Sin probar", "detalles": None, "error": None}
     }
 
-    # 1. Probar API de Fútbol
+# 1. Probar API de Fútbol (Modo Inspección de Bloqueo)
     try:
-        url_base = "https://api-sports.io"
+        url_base = "https://v3.football.api-sports.io"
         headers = {
             "x-rapidapi-host": "v3.football.api-sports.io",
             "x-rapidapi-key": FOOTBALL_API_KEY if FOOTBALL_API_KEY else "",
             "x-apisports-key": FOOTBALL_API_KEY if FOOTBALL_API_KEY else "",
+            "User-Agent": "Mozilla/5.0"
         }
+        # Intentamos pegarle al endpoint de estado
         res = requests.get(f"{url_base}/status", headers=headers, timeout=5)
+        
         reporte["prueba_api_futbol"]["estado"] = f"HTTP {res.status_code}"
-        reporte["prueba_api_futbol"]["detalles"] = res.json()
+        
+        # Guardamos los primeros 300 caracteres de lo que sea que responda el servidor
+        texto_respuesta = res.text.strip()
+        reporte["prueba_api_futbol"]["detalles"] = texto_respuesta[:300]
+        
     except Exception as e:
-        reporte["prueba_api_futbol"]["estado"] = "Error de conexión"
+        reporte["prueba_api_futbol"]["estado"] = "Error de conexión duro"
         reporte["prueba_api_futbol"]["error"] = str(e)
 
     # 2. Probar Grok IA
