@@ -145,10 +145,14 @@ async def probar_apis():
                 "Authorization": f"Bearer {GROK_API_KEY}",
                 "Content-Type": "application/json"
             }
+# Reemplaza en ambos lugares (test y trivias) el nombre del modelo
             payload = {
                 "model": "grok-beta", 
-                "messages": [{"role": "user", "content": "Responde con la palabra OK"}],
-                "max_tokens": 5
+                "messages": [
+                    {"role": "system", "content": prompt_sistema},
+                    {"role": "user", "content": prompt_usuario}
+                    ],
+                 "temperature": 0.7
             }
             res = requests.post(url_grok, json=payload, headers=headers_grok, timeout=6)
             reporte["prueba_grok_ia"]["estado"] = f"HTTP {res.status_code}"
@@ -214,14 +218,14 @@ async def obtener_trivias_http():
             "Asegurate de cambiar el orden de la opción correcta en las respuestas para que no siempre sea la primera."
         )
 
-        payload = {
-            "model": "grok-beta", 
-            "messages": [
-                {"role": "system", "content": prompt_sistema},
-                {"role": "user", "content": prompt_usuario}
-            ],
-            "temperature": 0.7
-        }
+            payload = {
+                "model": "grok-beta", 
+                "messages": [
+                    {"role": "system", "content": prompt_sistema},
+                    {"role": "user", "content": prompt_usuario}
+                    ],
+                 "temperature": 0.7
+            }
 
         res = requests.post(url_grok, json=payload, headers=headers_grok, timeout=8)
         
