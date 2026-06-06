@@ -215,7 +215,7 @@ async def obtener_trivias_http():
         )
 
         payload = {
-            "model": "grok-2", 
+            "model": "grok-4.3", 
             "messages": [
                 {"role": "system", "content": prompt_sistema},
                 {"role": "user", "content": prompt_usuario}
