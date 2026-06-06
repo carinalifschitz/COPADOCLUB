@@ -105,7 +105,7 @@ async def probar_apis():
 
     # 1. Probar la consulta buscando por Fecha y Liga del Mundial 2022
     try:
-        url = "https://v3.football.api-sports.io/fixtures?date=2020-04-04&league=1&season=2020"
+        url = "https://v3.football.api-sports.io/fixtures?team=451&last=1"
         headers = {
             "x-apisports-key": FOOTBALL_API_KEY if FOOTBALL_API_KEY else "",
             "x-rapidapi-key": FOOTBALL_API_KEY if FOOTBALL_API_KEY else "",
