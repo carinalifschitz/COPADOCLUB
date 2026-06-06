@@ -29,28 +29,27 @@ BANCO_RESPALDO = [
 ]
 
 def obtener_datos_final_mundo():
-    # ID Corregido para la Final de Qatar 2022 (Argentina vs Francia)
-    url = "https://v3.football.api-sports.io/fixtures?id=970031"
+    # Buscamos por la fecha exacta de la final y el ID de la liga del mundial (league=1, season=2022)
+    url = "https://v3.football.api-sports.io/fixtures?date=2022-12-18&league=1&season=2022"
     
     headers = {
         "x-apisports-key": FOOTBALL_API_KEY if FOOTBALL_API_KEY else "",
         "x-rapidapi-key": FOOTBALL_API_KEY if FOOTBALL_API_KEY else "",
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
     }
-    # ... (el resto de la función queda exactamente igual)
     
     datos_partido = {"detalles": {}, "eventos": []}
     
     try:
-        res = requests.get(url, headers=headers, timeout=5)
+        res = requests.get(url, headers=headers, timeout=6)
         
         if res.status_code == 200:
             content_type = res.headers.get("Content-Type", "")
             if "application/json" in content_type:
                 datos_json = res.json()
                 
-                # Verificamos si la respuesta contiene datos reales del partido
                 if "response" in datos_json and len(datos_json["response"]) > 0:
+                    # Al filtrar por fecha y mundial, el primer y único partido es la final
                     partido = datos_json["response"][0]
                     
                     datos_partido["detalles"] = {
@@ -62,8 +61,8 @@ def obtener_datos_final_mundo():
                         "arbitro": partido["fixture"]["referee"]
                     }
                     
-                    # Guardamos las incidencias principales del partido
-                    for evento in partido.get("events", [])[:15]:
+                    # Traemos los eventos (goles, tarjetas, cambios)
+                    for evento in partido.get("events", [])[:20]:
                         datos_partido["eventos"].append({
                             "tiempo": evento["time"]["elapsed"],
                             "equipo": evento["team"]["name"],
@@ -92,6 +91,8 @@ async def obtener_interfaz():
 @app.get("/api/test")
 # --- ENDPOINT DE DIAGNÓSTICO DEFINITIVO ---
 @app.get("/api/test")
+# --- ENDPOINT DE DIAGNÓSTICO INTELIGENTE ---
+@app.get("/api/test")
 async def probar_apis():
     reporte = {
         "estado_credenciales": {
@@ -102,9 +103,9 @@ async def probar_apis():
         "prueba_grok_ia": {"estado": "Sin probar", "respuesta_grok": None, "error": None}
     }
 
-    # 1. Probar la consulta del partido real (Final Qatar ID: 970030)
+    # 1. Probar la consulta buscando por Fecha y Liga del Mundial 2022
     try:
-        url = "https://v3.football.api-sports.io/fixtures?id=970031"
+        url = "https://v3.football.api-sports.io/fixtures?date=2022-12-18&league=1&season=2022"
         headers = {
             "x-apisports-key": FOOTBALL_API_KEY if FOOTBALL_API_KEY else "",
             "x-rapidapi-key": FOOTBALL_API_KEY if FOOTBALL_API_KEY else "",
@@ -115,11 +116,9 @@ async def probar_apis():
         
         if res.status_code == 200:
             datos_json = res.json()
-            # Si la API devuelve un error interno en su JSON (ej. límite de cuota superado)
             if "errors" in datos_json and datos_json["errors"]:
                 reporte["prueba_api_futbol_partido"]["error"] = datos_json["errors"]
             elif "response" in datos_json and len(datos_json["response"]) > 0:
-                # Si encuentra el partido, guardamos un resumen de lo que capturó
                 partido = datos_json["response"][0]
                 reporte["prueba_api_futbol_partido"]["datos_recuperados"] = {
                     "partido": f"{partido['teams']['home']['name']} vs {partido['teams']['away']['name']}",
@@ -127,7 +126,7 @@ async def probar_apis():
                     "cantidad_eventos": len(partido.get("events", []))
                 }
             else:
-                reporte["prueba_api_futbol_partido"]["error"] = "La API respondió bien, pero el array 'response' vino vacío. ¿El ID 970030 está disponible en tu plan?"
+                reporte["prueba_api_futbol_partido"]["error"] = "No se encontraron partidos para esa fecha de mundial."
     except Exception as e:
         reporte["prueba_api_futbol_partido"]["estado"] = "Error de ejecución en Python"
         reporte["prueba_api_futbol_partido"]["error"] = str(e)
