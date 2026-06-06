@@ -215,7 +215,7 @@ async def obtener_trivias_http():
         )
 
         payload = {
-            "model": "grok-4.3", 
+            "model": "llama3-8b-8192", 
             "messages": [
                 {"role": "system", "content": prompt_sistema},
                 {"role": "user", "content": prompt_usuario}
@@ -230,10 +230,12 @@ async def obtener_trivias_http():
             texto_json = datos_api["choices"]["message"]["content"].strip()
             
             # --- LIMPIADOR DE MARKDOWN EMERGENCIAL ---
-            # Si Grok devuelve el JSON envuelto en ```json ... ``` lo limpiamos manualmente
+            # Si Grok devuelve el JSON envuelto en ```json ... 
+``` lo limpiamos manualmente
             if texto_json.startswith("```"):
                 lineas = texto_json.split("\n")
-                if lineas[0].startswith("```"):
+                if lineas[0].startswith("
+```"):
                     lineas = lineas[1:]
                 if lineas[-1].startswith("```"):
                     lineas = lineas[:-1]
