@@ -5,6 +5,7 @@ import requests
 import random
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse # <-- Importante para devolver el HTML
 
 app = FastAPI()
 
@@ -67,8 +68,23 @@ def obtener_datos_final_mundo():
         
     return datos_partido
 
-# --- ENDPOINT DE LA TRIVIA ---
+
+# --- NUEVO: ENDPOINT PARA MOSTRAR LA WEB ---
+@app.get("/", response_class=HTMLResponse)
+@app.get("/api", response_class=HTMLResponse)
+async def obtener_interfaz():
+    # Lee el archivo index.html que pusimos dentro de la misma carpeta api/
+    ruta_html = os.path.join(os.path.dirname(__file__), "index.html")
+    try:
+        with open(ruta_html, "r", encoding="utf-8") as f:
+            return f.read()
+    except Exception:
+        return "<h1>Error: No se encontró el archivo index.html dentro de la carpeta api/</h1>"
+
+
+# --- ENDPOINT DE DATOS DE LA TRIVIA ---
 @app.get("/api/trivias")
+@app.get("/trivias")
 async def obtener_trivias_http():
     if not GROK_API_KEY:
         return {"preguntas": random.sample(BANCO_RESPALDO, len(BANCO_RESPALDO))}
