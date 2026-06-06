@@ -23,14 +23,14 @@ FOOTBALL_API_KEY = os.environ.get("FOOTBALL_API_KEY")
 
 # --- BANCO DE RESPALDO INTEGRADO ---
 BANCO_RESPALDO = [
-    {"pregunta": "¿Cuál fue el resultado final tras los 120 minutos en la final de Qatar 2022?", "opciones": ["3-3", "2-2", "4-4"], "correcta": "3-3"},
-    {"pregunta": "¿Qué jugador argentino anotó el primer gol de penal?", "opciones": ["Lionel Messi", "Ángel Di María", "Julián Álvarez"], "correcta": "Lionel Messi"},
-    {"pregunta": "¿En qué estadio se jugó la final de Qatar 2022?", "opciones": ["Lusail Iconic Stadium", "Al Bayt Stadium", "974 Stadium"], "correcta": "Lusail Iconic Stadium"}
+    {"pregunta": "¿x Cuál fue el resultado final tras los 120 minutos en la final de Qatar 2022?", "opciones": ["3-3", "2-2", "4-4"], "correcta": "3-3"},
+    {"pregunta": "¿x Qué jugador argentino anotó el primer gol de penal?", "opciones": ["Lionel Messi", "Ángel Di María", "Julián Álvarez"], "correcta": "Lionel Messi"},
+    {"pregunta": "¿x En qué estadio se jugó la final de Qatar 2022?", "opciones": ["Lusail Iconic Stadium", "Al Bayt Stadium", "974 Stadium"], "correcta": "Lusail Iconic Stadium"}
 ]
 
 def obtener_datos_final_mundo():
     # Buscamos por la fecha exacta de la final y el ID de la liga del mundial (league=1, season=2022)
-    url = "https://v3.football.api-sports.io/fixtures?date=2022-12-18&league=1&season=2022"
+    url = "https://v3.football.api-sports.io/fixtures?date=2026-06-06&league=1&season=2026"
     
     headers = {
         "x-apisports-key": FOOTBALL_API_KEY if FOOTBALL_API_KEY else "",
@@ -105,7 +105,7 @@ async def probar_apis():
 
     # 1. Probar la consulta buscando por Fecha y Liga del Mundial 2022
     try:
-        url = "https://v3.football.api-sports.io/fixtures?date=2022-12-18&league=1&season=2022"
+        url = "https://v3.football.api-sports.io/fixtures?date=2026-06-06&league=1&season=2026"
         headers = {
             "x-apisports-key": FOOTBALL_API_KEY if FOOTBALL_API_KEY else "",
             "x-rapidapi-key": FOOTBALL_API_KEY if FOOTBALL_API_KEY else "",
