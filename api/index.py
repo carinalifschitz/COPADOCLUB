@@ -29,67 +29,55 @@ BANCO_RESPALDO = [
 ]
 
 def obtener_datos_final_mundo():
-    # Intentaremos por los dos dominios posibles que maneja la API para cuentas gratuitas
-    urls_a_probar = [
-        "https://v3.football.api-sports.io/fixtures?id=970030",
-        "https://api-football-v1.p.rapidapi.com/v3/fixtures?id=970030"
-    ]
+    # URL oficial directa para los usuarios registrados en api-football / api-sports
+    url = "https://v3.football.api-sports.io/fixtures?id=970030"
     
-    headers_base = {
-        # Copiamos las credenciales en todos los formatos de clave que usan ambos servidores
-        "x-rapidapi-key": FOOTBALL_API_KEY if FOOTBALL_API_KEY else "",
+    headers = {
+        # Para api-football.com directa, esta es la cabecera oficial que autentica tu token
         "x-apisports-key": FOOTBALL_API_KEY if FOOTBALL_API_KEY else "",
-        "x-rapidapi-host": "api-football-v1.p.rapidapi.com",
-        # Añadimos un User-Agent para simular que la petición viene de un navegador y evitar bloqueos de red
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        # Dejamos esta por compatibilidad en algunas cuentas híbridas
+        "x-rapidapi-key": FOOTBALL_API_KEY if FOOTBALL_API_KEY else "",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
     }
     
     datos_partido = {"detalles": {}, "eventos": []}
     
-    # Probamos una URL, y si falla, pasamos automáticamente a la otra
-    for url in urls_a_probar:
-        try:
-            res = requests.get(url, headers=headers_base, timeout=4)
-            
-            if res.status_code == 200:
-                content_type = res.headers.get("Content-Type", "")
-                if "application/json" in content_type:
-                    datos_json = res.json()
+    try:
+        res = requests.get(url, headers=headers, timeout=5)
+        
+        if res.status_code == 200:
+            content_type = res.headers.get("Content-Type", "")
+            if "application/json" in content_type:
+                datos_json = res.json()
+                
+                # Verificamos si la respuesta contiene datos reales del partido
+                if "response" in datos_json and len(datos_json["response"]) > 0:
+                    partido = datos_json["response"][0]
                     
-                    # Si la API nos responde con un mensaje de error interno (ej: Clave inválida o sin créditos)
-                    if "errors" in datos_json and datos_json["errors"]:
-                        # Si hay un error explícito en el JSON, saltamos a la siguiente URL
-                        continue
+                    datos_partido["detalles"] = {
+                        "local": partido["teams"]["home"]["name"],
+                        "visitante": partido["teams"]["away"]["name"],
+                        "goles_local": partido["goals"]["home"],
+                        "goles_visitante": partido["goals"]["away"],
+                        "estadio": partido["fixture"]["venue"]["name"],
+                        "arbitro": partido["fixture"]["referee"]
+                    }
+                    
+                    # Guardamos las incidencias principales del partido
+                    for evento in partido.get("events", [])[:15]:
+                        datos_partido["eventos"].append({
+                            "tiempo": evento["time"]["elapsed"],
+                            "equipo": evento["team"]["name"],
+                            "jugador": evento["player"]["name"] if evento.get("player") else "Desconocido",
+                            "tipo": evento["type"],
+                            "detalle": evento["detail"]
+                        })
                         
-                    if "response" in datos_json and len(datos_json["response"]) > 0:
-                        partido = datos_json["response"][0]
-                        
-                        datos_partido["detalles"] = {
-                            "local": partido["teams"]["home"]["name"],
-                            "visitante": partido["teams"]["away"]["name"],
-                            "goles_local": partido["goals"]["home"],
-                            "goles_visitante": partido["goals"]["away"],
-                            "estadio": partido["fixture"]["venue"]["name"],
-                            "arbitro": partido["fixture"]["referee"]
-                        }
-                        
-                        for evento in partido.get("events", [])[:15]:
-                            datos_partido["eventos"].append({
-                                "tiempo": evento["time"]["elapsed"],
-                                "equipo": evento["team"]["name"],
-                                "jugador": evento["player"]["name"] if evento.get("player") else "Desconocido",
-                                "tipo": evento["type"],
-                                "detalle": evento["detail"]
-                            })
-                        
-                        # Si encontramos datos válidos, rompemos el bucle y los devolvemos
-                        return datos_partido
-        except Exception:
-            # Si una URL tira error de conexión, el "except" lo atrapa y el "for" intenta con la siguiente
-            continue
-            
+                    return datos_partido
+    except Exception:
+        pass
+        
     return datos_partido
-
 # --- NUEVO: ENDPOINT PARA MOSTRAR LA WEB ---
 @app.get("/", response_class=HTMLResponse)
 @app.get("/api", response_class=HTMLResponse)
