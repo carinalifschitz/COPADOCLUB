@@ -30,7 +30,9 @@ BANCO_RESPALDO = [
 
 def obtener_datos_final_mundo():
     # Buscamos por la fecha exacta de la final y el ID de la liga del mundial (league=1, season=2022)
-    url = "https://v3.football.api-sports.io/fixtures?team=451&last=1"
+    fixture_id = 1137021
+    url = f"https://v3.football.api-sports.io/fixtures?id={fixture_id}"
+    
     
     headers = {
         "x-apisports-key": FOOTBALL_API_KEY if FOOTBALL_API_KEY else "",
@@ -105,7 +107,9 @@ async def probar_apis():
 
     # 1. Probar la consulta buscando por Fecha y Liga del Mundial 2022
     try:
-        url = "https://v3.football.api-sports.io/fixtures?team=451&last=1"
+        fixture_id = 1137021
+        url = f"https://v3.football.api-sports.io/fixtures?id={fixture_id}"
+    
         headers = {
             "x-apisports-key": FOOTBALL_API_KEY if FOOTBALL_API_KEY else "",
             "x-rapidapi-key": FOOTBALL_API_KEY if FOOTBALL_API_KEY else "",
