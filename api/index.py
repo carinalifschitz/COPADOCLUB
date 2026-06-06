@@ -146,7 +146,7 @@ async def probar_apis():
                 "Content-Type": "application/json"
             }
             payload = {
-                "model": "llama3-8b-8192", 
+                "model": "grok-beta", 
                 "messages": [{"role": "user", "content": "Responde con la palabra OK"}],
                 "max_tokens": 5
             }
@@ -215,7 +215,7 @@ async def obtener_trivias_http():
         )
 
         payload = {
-            "model": "llama3-8b-8192", 
+            "model": "grok-beta", 
             "messages": [
                 {"role": "system", "content": prompt_sistema},
                 {"role": "user", "content": prompt_usuario}
