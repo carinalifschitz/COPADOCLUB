@@ -41,7 +41,7 @@ def obtener_datos_final_mundo():
     
     try:
         # Obtenemos el ID del partido más reciente de la liga
-        res_list = requests.get(f"{base_url}/fixtures?league=39&season=2025&last=1", headers=headers, timeout=10)
+        res_list = requests.get(f"{base_url}/fixtures?league=140&season=2025&last=1", headers=headers, timeout=10)
         if res_list.status_code == 200:
             data_list = res_list.json()
             if data_list.get("response"):
