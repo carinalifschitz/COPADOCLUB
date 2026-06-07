@@ -4,7 +4,6 @@ import requests
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
-# MODIFICACIÓN: Importamos el cliente oficial compatible con xAI
 from openai import OpenAI
 
 app = FastAPI()
@@ -20,16 +19,16 @@ app.add_middleware(
 GROK_API_KEY = os.environ.get("GROK_API_KEY")
 FOOTBALL_API_KEY = os.environ.get("FOOTBALL_API_KEY")
 
-# MODIFICACIÓN: Inicializamos el cliente oficial apuntando a la infraestructura de xAI
+# Inicialización segura apuntando al motor gratuito de Groq
 grok_client = None
 if GROK_API_KEY:
     grok_client = OpenAI(
         api_key=GROK_API_KEY,
-        base_url="https://googleapis.com"
+        # CAMBIO: URL base oficial para conectar con la API de Groq
+        base_url="https://groq.com"
     )
 
 def obtener_datos_final_mundo():
-    # URL oficial de la API de deportes
     url = "https://api-sports.io"
     headers = {"x-apisports-key": FOOTBALL_API_KEY or "", "User-Agent": "Mozilla/5.0"}
     
@@ -39,17 +38,16 @@ def obtener_datos_final_mundo():
         if res.status_code == 200:
             data = res.json()
             if "response" in data and data["response"]:
-                p = data["response"][0]
+                p = data["response"]
                 resultado["detalles"] = {
                     "local": p["teams"]["home"]["name"], 
                     "visitante": p["teams"]["away"]["name"]
                 }
                 
-                # Extracción detallada de jugadores
                 if "players" in p:
                     for team in p["players"]:
                         for player in team.get("players", []):
-                            stats = player.get("statistics", [{}])[0]
+                            stats = player.get("statistics", [{}])
                             resultado["jugadores"].append({
                                 "nombre": player["player"]["name"],
                                 "goles": stats.get("goals", {}).get("total", 0),
@@ -71,14 +69,14 @@ async def probar_apis():
     datos = obtener_datos_final_mundo()
     grok_res = {"status": "No configurado"}
     
-    # MODIFICACIÓN: Usamos el cliente oficial para evitar el error 403 de Cloudflare
     if grok_client:
         try:
             response = grok_client.chat.completions.create(
-                model="gemini-2.5-flash",
+                # CAMBIO: Usamos uno de los modelos gratuitos más potentes de Groq
+                model="llama-3.3-70b-versatile",
                 messages=[{"role": "user", "content": "Hola"}]
             )
-            grok_res = {"status": 200, "body": response.choices[0].message.content}
+            grok_res = {"status": 200, "body": response.choices.message.content}
         except Exception as e:
             grok_res = {"error": str(e)}
             
@@ -93,14 +91,14 @@ async def obtener_trivias():
     info_jugadores = datos.get('jugadores', [])[:15]
     prompt_contenido = f"Crea 5 preguntas de trivia en formato JSON basándote estrictamente en estos jugadores: {json.dumps(info_jugadores)}. Formato: {{'preguntas': [{{'pregunta': '...', 'opciones': ['A','B','C'], 'correcta': '...'}}]}}"
     
-    # MODIFICACIÓN: Consumo limpio usando la abstracción nativa para el endpoint de trivias
     try:
         response = grok_client.chat.completions.create(
-            model="gemini-2.5-flash",
+            # CAMBIO: Usamos uno de los modelos gratuitos más potentes de Groq
+            model="llama-3.3-70b-versatile",
             messages=[{"role": "user", "content": prompt_contenido}],
             timeout=15
         )
-        raw_text = response.choices[0].message.content
+        raw_text = response.choices.message.content
         texto = raw_text.replace("```json", "").replace("```", "").strip()
         return json.loads(texto)
     except Exception as e:
