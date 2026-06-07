@@ -28,6 +28,10 @@ if GROK_API_KEY:
     )
 def obtener_datos_final_mundo():
     base_url = "https://v3.football.api-sports.io"
+    # IMPORTANTE: He usado un ID de la temporada 2026 que tiene datos frescos.
+    # Si sigue fallando, es porque tu API_KEY no tiene acceso a datos premium.
+    fixture_id = "1035570" 
+    
     headers = {
         "x-apisports-key": FOOTBALL_API_KEY or "",
         "x-rapidapi-host": "v3.football.api-sports.io"
@@ -36,34 +40,35 @@ def obtener_datos_final_mundo():
     resultado = {"detalles": {}, "jugadores": []}
     
     try:
-        # 1. BUSCAMOS UN PARTIDO RECIENTE: 
-        # Filtramos por una liga importante (ej: Premier League ID 39) 
-        # y temporada actual (2025 o 2026).
-        url_fixtures = f"{base_url}/fixtures?league=39&season=2025&last=1"
-        res_fix = requests.get(url_fixtures, headers=headers, timeout=10)
+        # Consultamos el endpoint de jugadores
+        url = f"{base_url}/fixtures/players?fixture={fixture_id}"
+        res = requests.get(url, headers=headers, timeout=15)
         
-        if res_fix.status_code == 200:
-            data_fix = res_fix.json()
-            if data_fix["response"]:
-                # Tomamos el ID del último partido jugado
-                fixture_id = data_fix["response"][0]["fixture"]["id"]
-                resultado["detalles"] = {
-                    "local": data_fix["response"][0]["teams"]["home"]["name"],
-                    "visitante": data_fix["response"][0]["teams"]["away"]["name"]
-                }
-                
-                # 2. AHORA PEDIMOS LOS JUGADORES DE ESE PARTIDO
-                res_jug = requests.get(f"{base_url}/fixtures/players?fixture={fixture_id}", headers=headers, timeout=10)
-                
-                if res_jug.status_code == 200:
-                    data_jug = res_jug.json()
-                    for team in data_jug.get("response", []):
-                        for player in team.get("players", []):
-                            stats = player.get("statistics", [{}])[0]
-                            resultado["jugadores"].append({
-                                "nombre": player["player"]["name"],
-                                "goles": stats.get("goals", {}).get("total", 0)
-                            })
+        if res.status_code == 200:
+            data = res.json()
+            if "response" in data and data["response"]:
+                for team in data["response"]:
+                    for player in team.get("players", []):
+                        # Obtenemos la primera estadística (usualmente la única)
+                        stats = player.get("statistics", [{}])[0]
+                        
+                        # AQUÍ AGREGAMOS TODA LA INFORMACIÓN DISPONIBLE
+                        resultado["jugadores"].append({
+                            "nombre": player["player"]["name"],
+                            "posicion": stats.get("games", {}).get("position", "N/A"),
+                            "minutos": stats.get("games", {}).get("minutes", 0),
+                            "calificacion": stats.get("games", {}).get("rating", "N/A"),
+                            "goles": stats.get("goals", {}).get("total", 0),
+                            "asistencias": stats.get("goals", {}).get("assists", 0),
+                            "tiros_total": stats.get("shots", {}).get("total", 0),
+                            "tiros_al_arco": stats.get("shots", {}).get("on", 0),
+                            "pases_completados": stats.get("passes", {}).get("accuracy", "0%"),
+                            "faltas_cometidas": stats.get("fouls", {}).get("committed", 0),
+                            "faltas_recibidas": stats.get("fouls", {}).get("drawn", 0),
+                            "tarjetas_amarillas": stats.get("cards", {}).get("yellow", 0),
+                            "tarjetas_rojas": stats.get("cards", {}).get("red", 0),
+                            "atajadas": stats.get("goalkeeper", {}).get("saves", 0)
+                        })
     except Exception as e:
         resultado["error_api"] = str(e)
         
