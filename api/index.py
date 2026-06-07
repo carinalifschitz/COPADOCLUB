@@ -27,11 +27,7 @@ if GROK_API_KEY:
         base_url="https://api.groq.com/openai/v1"
     )
 def obtener_datos_final_mundo():
-    # URL base para los servicios
     base_url = "https://v3.football.api-sports.io"
-    # ID de partido (hemos verificado que este ID devuelve datos básicos)
-    fixture_id = "1035570" 
-    
     headers = {
         "x-apisports-key": FOOTBALL_API_KEY or "",
         "x-rapidapi-host": "v3.football.api-sports.io"
@@ -40,38 +36,39 @@ def obtener_datos_final_mundo():
     resultado = {"detalles": {}, "jugadores": []}
     
     try:
-        # 1. Obtenemos detalles del partido
-        res_detalles = requests.get(f"{base_url}/fixtures", headers=headers, params={"id": fixture_id}, timeout=10)
-        # 2. Obtenemos los jugadores específicos del partido
-        res_jugadores = requests.get(f"{base_url}/fixtures/players", headers=headers, params={"fixture": fixture_id}, timeout=10)
+        # 1. BUSCAMOS UN PARTIDO RECIENTE: 
+        # Filtramos por una liga importante (ej: Premier League ID 39) 
+        # y temporada actual (2025 o 2026).
+        url_fixtures = f"{base_url}/fixtures?league=39&season=2025&last=1"
+        res_fix = requests.get(url_fixtures, headers=headers, timeout=10)
         
-        if res_detalles.status_code == 200:
-            data = res_detalles.json()
-            if "response" in data and data["response"]:
-                p = data["response"][0]
+        if res_fix.status_code == 200:
+            data_fix = res_fix.json()
+            if data_fix["response"]:
+                # Tomamos el ID del último partido jugado
+                fixture_id = data_fix["response"][0]["fixture"]["id"]
                 resultado["detalles"] = {
-                    "local": p["teams"]["home"]["name"], 
-                    "visitante": p["teams"]["away"]["name"]
+                    "local": data_fix["response"][0]["teams"]["home"]["name"],
+                    "visitante": data_fix["response"][0]["teams"]["away"]["name"]
                 }
-        
-        if res_jugadores.status_code == 200:
-            data_j = res_jugadores.json()
-            if "response" in data_j and data_j["response"]:
-                # La estructura de /fixtures/players devuelve una lista de equipos
-                for team in data_j["response"]:
-                    for player in team.get("players", []):
-                        # Accedemos a la primera estadística disponible
-                        stats = player.get("statistics", [{}])[0]
-                        resultado["jugadores"].append({
-                            "nombre": player["player"]["name"],
-                            "goles": stats.get("goals", {}).get("total", 0),
-                            "faltas": stats.get("fouls", {}).get("committed", 0),
-                            "atajadas": stats.get("goalkeeper", {}).get("saves", 0)
-                        })
+                
+                # 2. AHORA PEDIMOS LOS JUGADORES DE ESE PARTIDO
+                res_jug = requests.get(f"{base_url}/fixtures/players?fixture={fixture_id}", headers=headers, timeout=10)
+                
+                if res_jug.status_code == 200:
+                    data_jug = res_jug.json()
+                    for team in data_jug.get("response", []):
+                        for player in team.get("players", []):
+                            stats = player.get("statistics", [{}])[0]
+                            resultado["jugadores"].append({
+                                "nombre": player["player"]["name"],
+                                "goles": stats.get("goals", {}).get("total", 0)
+                            })
     except Exception as e:
         resultado["error_api"] = str(e)
         
     return resultado
+
 @app.get("/", response_class=HTMLResponse)
 async def root():
     ruta_html = os.path.join(os.path.dirname(__file__), "index.html")
