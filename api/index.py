@@ -24,11 +24,11 @@ grok_client = None
 if GROK_API_KEY:
     grok_client = OpenAI(
         api_key=GROK_API_KEY,
-        # CORRECCIÓN: Quitamos '/v1' para evitar que la librería OpenAI lo duplique internamente
-        base_url="https://api.groq.com/openai/v1"
+        base_url="https://groq.com"
     )
 
 def obtener_datos_final_mundo():
+    # ID de la final Qatar 2022 original de API-Football
     url = "https://api-sports.io"
     headers = {"x-apisports-key": FOOTBALL_API_KEY or "", "User-Agent": "Mozilla/5.0"}
     
@@ -38,16 +38,18 @@ def obtener_datos_final_mundo():
         if res.status_code == 200:
             data = res.json()
             if "response" in data and data["response"]:
-                p = data["response"]
+                # CORRECCIÓN: Se restauró el índice [0] original para leer el partido correctamente
+                p = data["response"][0]
                 resultado["detalles"] = {
                     "local": p["teams"]["home"]["name"], 
                     "visitante": p["teams"]["away"]["name"]
                 }
                 
+                # Extracción detallada de jugadores tal como la escribiste originalmente
                 if "players" in p:
                     for team in p["players"]:
                         for player in team.get("players", []):
-                            stats = player.get("statistics", [{}])
+                            stats = player.get("statistics", [{}])[0]
                             resultado["jugadores"].append({
                                 "nombre": player["player"]["name"],
                                 "goles": stats.get("goals", {}).get("total", 0),
@@ -75,7 +77,7 @@ async def probar_apis():
                 model="llama-3.3-70b-versatile",
                 messages=[{"role": "user", "content": "Hola"}]
             )
-            grok_res = {"status": 200, "body": response.choices.message.content}
+            grok_res = {"status": 200, "body": response.choices[0].message.content}
         except Exception as e:
             grok_res = {"error": str(e)}
             
@@ -88,7 +90,7 @@ async def obtener_trivias():
 
     datos = obtener_datos_final_mundo()
     info_jugadores = datos.get('jugadores', [])[:15]
-    prompt_contenido = f"Crea 5 preguntas de trivia en formato JSON basándote estrictamente en estos jugadores: {json.dumps(info_jugadores)}. Formato: {{'preguntas': [{{'pregunta': '...', 'opciones': ['A','B','C'], 'correcta': '...'}}]}}"
+    prompt_contenido = f"Crea 10 preguntas de trivia en formato JSON basándote estrictamente en estos jugadores: {json.dumps(info_jugadores)}. Formato: {{'preguntas': [{{'pregunta': '...', 'opciones': ['A','B','C'], 'correcta': '...'}}]}}"
     
     try:
         response = grok_client.chat.completions.create(
@@ -96,7 +98,7 @@ async def obtener_trivias():
             messages=[{"role": "user", "content": prompt_contenido}],
             timeout=15
         )
-        raw_text = response.choices.message.content
+        raw_text = response.choices[0].message.content
         texto = raw_text.replace("```json", "").replace("```", "").strip()
         return json.loads(texto)
     except Exception as e:
