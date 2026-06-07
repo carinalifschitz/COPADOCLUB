@@ -19,33 +19,37 @@ app.add_middleware(
 GROK_API_KEY = os.environ.get("GROK_API_KEY")
 FOOTBALL_API_KEY = os.environ.get("FOOTBALL_API_KEY")
 
-# Inicialización segura apuntando al motor gratuito de Groq
+# Inicialización corregida con la URL base correcta para el cliente de Groq
 grok_client = None
 if GROK_API_KEY:
     grok_client = OpenAI(
         api_key=GROK_API_KEY,
-        base_url="https://groq.com"
+        base_url="https://api.groq.com/openai/v1"
     )
 
 def obtener_datos_final_mundo():
-    # ID de la final Qatar 2022 original de API-Football
-    url = "https://api-sports.io"
-    headers = {"x-apisports-key": FOOTBALL_API_KEY or "", "User-Agent": "Mozilla/5.0"}
+    # URL corregida al endpoint de partidos (fixtures)
+    url = "https://v3.football.api-sports.io/fixtures"
+    # ID de partido válido para pruebas (ejemplo: final del mundial)
+    querystring = {"id": "1035570"}
+    headers = {
+        "x-apisports-key": FOOTBALL_API_KEY or "",
+        "x-rapidapi-host": "v3.football.api-sports.io"
+    }
     
     resultado = {"detalles": {}, "jugadores": []}
     try:
-        res = requests.get(url, headers=headers, timeout=10)
+        res = requests.get(url, headers=headers, params=querystring, timeout=10)
         if res.status_code == 200:
             data = res.json()
             if "response" in data and data["response"]:
-                # CORRECCIÓN: Se restauró el índice [0] original para leer el partido correctamente
                 p = data["response"][0]
                 resultado["detalles"] = {
                     "local": p["teams"]["home"]["name"], 
                     "visitante": p["teams"]["away"]["name"]
                 }
                 
-                # Extracción detallada de jugadores tal como la escribiste originalmente
+                # Mantenemos tu lógica original de extracción
                 if "players" in p:
                     for team in p["players"]:
                         for player in team.get("players", []):
