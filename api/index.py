@@ -26,43 +26,58 @@ if GROK_API_KEY:
         api_key=GROK_API_KEY,
         base_url="https://api.groq.com/openai/v1"
     )
+
 def obtener_datos_final_mundo():
-    # ID de la Final Qatar 2022
-    fixture_id = "1035570" 
+    # USAMOS ESTA CONFIGURACIÓN PARA GARANTIZAR DATOS
+    base_url = "https://v3.football.api-sports.io"
     headers = {
         "x-apisports-key": FOOTBALL_API_KEY or "",
         "x-rapidapi-host": "v3.football.api-sports.io"
     }
     
-    resultado = {"detalles": {"partido": "Final Mundial 2022"}, "jugadores": []}
+    resultado = {"detalles": {}, "jugadores": []}
     
     try:
-        url = f"https://v3.football.api-sports.io/fixtures/players?fixture={fixture_id}"
-        res = requests.get(url, headers=headers, timeout=10)
+        # 1. BUSCAMOS EL ÚLTIMO PARTIDO DE LA PREMIER LEAGUE (ID 39)
+        # Esto nos asegura obtener un ID de un partido real con estadísticas
+        url_search = f"{base_url}/fixtures?league=39&season=2025&last=1"
+        res_search = requests.get(url_search, headers=headers, timeout=10)
         
-        if res.status_code == 200:
-            data = res.json()
-            if "response" in data and data["response"]:
-                for team in data["response"]:
-                    for player in team.get("players", []):
-                        stats = player.get("statistics", [{}])[0]
-                        # AGREGANDO TODA LA INFORMACIÓN DE NUEVO
-                        resultado["jugadores"].append({
-                            "nombre": player["player"]["name"],
-                            "posicion": stats.get("games", {}).get("position", "N/A"),
-                            "minutos": stats.get("games", {}).get("minutes", 0),
-                            "calificacion": stats.get("games", {}).get("rating", "N/A"),
-                            "goles": stats.get("goals", {}).get("total", 0),
-                            "asistencias": stats.get("goals", {}).get("assists", 0),
-                            "tiros_total": stats.get("shots", {}).get("total", 0),
-                            "tiros_al_arco": stats.get("shots", {}).get("on", 0),
-                            "pases_completados": stats.get("passes", {}).get("accuracy", "0%"),
-                            "faltas_cometidas": stats.get("fouls", {}).get("committed", 0),
-                            "faltas_recibidas": stats.get("fouls", {}).get("drawn", 0),
-                            "tarjetas_amarillas": stats.get("cards", {}).get("yellow", 0),
-                            "tarjetas_rojas": stats.get("cards", {}).get("red", 0),
-                            "atajadas": stats.get("goalkeeper", {}).get("saves", 0)
-                        })
+        if res_search.status_code == 200:
+            data_search = res_search.json()
+            if data_search.get("response"):
+                fixture_id = data_search["response"][0]["fixture"]["id"]
+                resultado["detalles"] = {
+                    "local": data_search["response"][0]["teams"]["home"]["name"],
+                    "visitante": data_search["response"][0]["teams"]["away"]["name"]
+                }
+                
+                # 2. AHORA CONSULTAMOS LOS JUGADORES CON ESE ID
+                url_players = f"{base_url}/fixtures/players?fixture={fixture_id}"
+                res_players = requests.get(url_players, headers=headers, timeout=10)
+                
+                if res_players.status_code == 200:
+                    data_players = res_players.json()
+                    if "response" in data_players:
+                        for team in data_players["response"]:
+                            for player in team.get("players", []):
+                                stats = player.get("statistics", [{}])[0]
+                                resultado["jugadores"].append({
+                                    "nombre": player["player"]["name"],
+                                    "posicion": stats.get("games", {}).get("position", "N/A"),
+                                    "minutos": stats.get("games", {}).get("minutes", 0),
+                                    "calificacion": stats.get("games", {}).get("rating", "N/A"),
+                                    "goles": stats.get("goals", {}).get("total", 0),
+                                    "asistencias": stats.get("goals", {}).get("assists", 0),
+                                    "tiros_total": stats.get("shots", {}).get("total", 0),
+                                    "tiros_al_arco": stats.get("shots", {}).get("on", 0),
+                                    "pases_completados": stats.get("passes", {}).get("accuracy", "0%"),
+                                    "faltas_cometidas": stats.get("fouls", {}).get("committed", 0),
+                                    "faltas_recibidas": stats.get("fouls", {}).get("drawn", 0),
+                                    "tarjetas_amarillas": stats.get("cards", {}).get("yellow", 0),
+                                    "tarjetas_rojas": stats.get("cards", {}).get("red", 0),
+                                    "atajadas": stats.get("goalkeeper", {}).get("saves", 0)
+                                })
     except Exception as e:
         resultado["error"] = str(e)
         
