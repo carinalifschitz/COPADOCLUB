@@ -24,8 +24,8 @@ grok_client = None
 if GROK_API_KEY:
     grok_client = OpenAI(
         api_key=GROK_API_KEY,
-        # CAMBIO: URL base oficial para conectar con la API de Groq
-        base_url="https://groq.com"
+        # CORRECCIÓN: Quitamos '/v1' para evitar que la librería OpenAI lo duplique internamente
+        base_url="https://api.groq.com/openai"
     )
 
 def obtener_datos_final_mundo():
@@ -72,7 +72,6 @@ async def probar_apis():
     if grok_client:
         try:
             response = grok_client.chat.completions.create(
-                # CAMBIO: Usamos uno de los modelos gratuitos más potentes de Groq
                 model="llama-3.3-70b-versatile",
                 messages=[{"role": "user", "content": "Hola"}]
             )
@@ -93,7 +92,6 @@ async def obtener_trivias():
     
     try:
         response = grok_client.chat.completions.create(
-            # CAMBIO: Usamos uno de los modelos gratuitos más potentes de Groq
             model="llama-3.3-70b-versatile",
             messages=[{"role": "user", "content": prompt_contenido}],
             timeout=15
