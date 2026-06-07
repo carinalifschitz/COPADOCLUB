@@ -1,7 +1,7 @@
 import json
 import os
 import requests
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 
@@ -20,7 +20,7 @@ FOOTBALL_API_KEY = os.environ.get("FOOTBALL_API_KEY")
 
 def obtener_datos_final_mundo():
     # ID de la final Qatar 2022
-    url = "https://v3.football.api-sports.io/fixtures?id=1137021"
+    url = "https://api-sports.io"
     headers = {"x-apisports-key": FOOTBALL_API_KEY or "", "User-Agent": "Mozilla/5.0"}
     
     resultado = {"detalles": {}, "jugadores": []}
@@ -63,9 +63,8 @@ async def probar_apis():
     
     if GROK_API_KEY:
         try:
-            # CORRECCIÓN: Cambiado modelo a "grok-2"
             res = requests.post(
-                "https://api.x.ai/v1/chat/completions",
+                "https://x.ai",
                 headers={"Authorization": f"Bearer {GROK_API_KEY}", "Content-Type": "application/json"},
                 json={
                     "model": "grok-4.3", 
@@ -81,27 +80,34 @@ async def probar_apis():
 
 @app.get("/api/trivias")
 async def obtener_trivias():
+    # CAMBIO 1: Validamos la key aquí también para evitar el error 400
+    if not GROK_API_KEY:
+        return {"error": "GROK_API_KEY no configurada"}
+
     datos = obtener_datos_final_mundo()
     
     info_jugadores = datos.get('jugadores', [])[:15]
-    prompt_contenido = f"Crea 5 preguntas de trivia basadas en estos jugadores: {json.dumps(info_jugadores)}"
+    prompt_contenido = f"Crea 5 preguntas de trivia en formato JSON basándote estrictamente en estos jugadores: {json.dumps(info_jugadores)}. Formato: {{'preguntas': [{{'pregunta': '...', 'opciones': ['A','B','C'], 'correcta': '...'}}]}}"
     
     payload = {
         "model": "grok-4.3",
         "messages": [
-            {"role": "user", "content": "Genera un JSON con 15 preguntas de trivia sobre fútbol. Formato: {'preguntas': [{'pregunta': '...', 'opciones': ['A','B','C'], 'correcta': '...'}]}"}
+            # CAMBIO 2: Cambiado el texto estático por tu variable prompt_contenido
+            {"role": "user", "content": prompt_contenido}
         ]
     }
     
     try:
         res = requests.post(
-            "https://api.x.ai/v1/chat/completions",
+            "https://x.ai",
             headers={"Authorization": f"Bearer {GROK_API_KEY}", "Content-Type": "application/json"},
             json=payload,
             timeout=15
         )
         if res.status_code == 200:
-            texto = res.json()["choices"][0]["message"]["content"].replace("```json", "").replace("```", "").strip()
+            # CAMBIO 3: Ajustado el acceso al mensaje del JSON de respuesta de Grok
+            raw_text = res.json()["choices"]["message"]["content"]
+            texto = raw_text.replace("```json", "").replace("```", "").strip()
             return json.loads(texto)
         return {"error": f"Grok falló {res.status_code}", "detalle": res.text}
     except Exception as e:
