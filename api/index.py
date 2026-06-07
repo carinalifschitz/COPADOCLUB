@@ -28,42 +28,39 @@ if GROK_API_KEY:
     )
 
 def obtener_datos_final_mundo():
-    # URL corregida al endpoint de partidos (fixtures)
-    url = "https://v3.football.api-sports.io/fixtures"
-    # ID de partido válido para pruebas (ejemplo: final del mundial)
-    querystring = {"id": "1035570"}
+    # 1. Primero obtenemos el fixture para confirmar que el partido existe
+    base_url = "https://v3.football.api-sports.io"
     headers = {
         "x-apisports-key": FOOTBALL_API_KEY or "",
         "x-rapidapi-host": "v3.football.api-sports.io"
     }
     
+    # ID del partido
+    fixture_id = "1035570"
     resultado = {"detalles": {}, "jugadores": []}
+    
     try:
-        res = requests.get(url, headers=headers, params=querystring, timeout=10)
+        # AQUI ESTÁ EL CAMBIO: Llamamos al endpoint de jugadores
+        res = requests.get(f"{base_url}/fixtures/players", headers=headers, params={"fixture": fixture_id}, timeout=10)
+        
         if res.status_code == 200:
             data = res.json()
             if "response" in data and data["response"]:
-                p = data["response"][0]
-                resultado["detalles"] = {
-                    "local": p["teams"]["home"]["name"], 
-                    "visitante": p["teams"]["away"]["name"]
-                }
-                
-                # Mantenemos tu lógica original de extracción
-                if "players" in p:
-                    for team in p["players"]:
-                        for player in team.get("players", []):
-                            stats = player.get("statistics", [{}])[0]
-                            resultado["jugadores"].append({
-                                "nombre": player["player"]["name"],
-                                "goles": stats.get("goals", {}).get("total", 0),
-                                "faltas": stats.get("fouls", {}).get("committed", 0),
-                                "atajadas": stats.get("goalkeeper", {}).get("saves", 0)
-                            })
+                # La estructura de /fixtures/players devuelve una lista de equipos
+                for team_data in data["response"]:
+                    for player in team_data.get("players", []):
+                        stats = player.get("statistics", [{}])[0]
+                        resultado["jugadores"].append({
+                            "nombre": player["player"]["name"],
+                            "goles": stats.get("games", {}).get("minutes", 0), # Ejemplo
+                            "posicion": player.get("statistics", [{}])[0].get("games", {}).get("position", "N/A"),
+                            "goles": stats.get("goals", {}).get("total", 0),
+                            "faltas": stats.get("fouls", {}).get("committed", 0),
+                            "atajadas": stats.get("goalkeeper", {}).get("saves", 0)
+                        })
     except Exception as e:
         resultado["error_api"] = str(e)
     return resultado
-
 @app.get("/", response_class=HTMLResponse)
 async def root():
     ruta_html = os.path.join(os.path.dirname(__file__), "index.html")
