@@ -65,7 +65,12 @@ async def probar_apis():
         try:
             res = requests.post(
                 "https://x.ai",
-                headers={"Authorization": f"Bearer {GROK_API_KEY}", "Content-Type": "application/json"},
+                # OJO: Se agregó el User-Agent para saltar Cloudflare
+                headers={
+                    "Authorization": f"Bearer {GROK_API_KEY}", 
+                    "Content-Type": "application/json",
+                    "User-Agent": "Mozilla/5.0"
+                },
                 json={
                     "model": "grok-4.3", 
                     "messages": [{"role": "user", "content": "Hola"}]
@@ -100,7 +105,12 @@ async def obtener_trivias():
     try:
         res = requests.post(
             "https://x.ai",
-            headers={"Authorization": f"Bearer {GROK_API_KEY}", "Content-Type": "application/json"},
+            # OJO: Se agregó el User-Agent para saltar Cloudflare
+            headers={
+                "Authorization": f"Bearer {GROK_API_KEY}", 
+                "Content-Type": "application/json",
+                "User-Agent": "Mozilla/5.0"
+            },
             json=payload,
             timeout=15
         )
