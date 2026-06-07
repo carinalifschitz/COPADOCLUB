@@ -25,7 +25,7 @@ grok_client = None
 if GROK_API_KEY:
     grok_client = OpenAI(
         api_key=GROK_API_KEY,
-        base_url="https://api.x.ai/v1"
+        base_url="https://googleapis.com"
     )
 
 def obtener_datos_final_mundo():
@@ -75,7 +75,7 @@ async def probar_apis():
     if grok_client:
         try:
             response = grok_client.chat.completions.create(
-                model="grok-4.3",
+                model="gemini-2.5-flash",
                 messages=[{"role": "user", "content": "Hola"}]
             )
             grok_res = {"status": 200, "body": response.choices[0].message.content}
@@ -96,7 +96,7 @@ async def obtener_trivias():
     # MODIFICACIÓN: Consumo limpio usando la abstracción nativa para el endpoint de trivias
     try:
         response = grok_client.chat.completions.create(
-            model="grok-4.3",
+            model="gemini-2.5-flash",
             messages=[{"role": "user", "content": prompt_contenido}],
             timeout=15
         )
