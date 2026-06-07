@@ -26,40 +26,51 @@ if GROK_API_KEY:
         api_key=GROK_API_KEY,
         base_url="https://api.groq.com/openai/v1"
     )
-
 def obtener_datos_final_mundo():
-    # 1. Primero obtenemos el fixture para confirmar que el partido existe
+    # URL base para los servicios
     base_url = "https://v3.football.api-sports.io"
+    # ID de partido (hemos verificado que este ID devuelve datos básicos)
+    fixture_id = "1035570" 
+    
     headers = {
         "x-apisports-key": FOOTBALL_API_KEY or "",
         "x-rapidapi-host": "v3.football.api-sports.io"
     }
     
-    # ID del partido
-    fixture_id = "1035570"
     resultado = {"detalles": {}, "jugadores": []}
     
     try:
-        # AQUI ESTÁ EL CAMBIO: Llamamos al endpoint de jugadores
-        res = requests.get(f"{base_url}/fixtures/players", headers=headers, params={"fixture": fixture_id}, timeout=10)
+        # 1. Obtenemos detalles del partido
+        res_detalles = requests.get(f"{base_url}/fixtures", headers=headers, params={"id": fixture_id}, timeout=10)
+        # 2. Obtenemos los jugadores específicos del partido
+        res_jugadores = requests.get(f"{base_url}/fixtures/players", headers=headers, params={"fixture": fixture_id}, timeout=10)
         
-        if res.status_code == 200:
-            data = res.json()
+        if res_detalles.status_code == 200:
+            data = res_detalles.json()
             if "response" in data and data["response"]:
+                p = data["response"][0]
+                resultado["detalles"] = {
+                    "local": p["teams"]["home"]["name"], 
+                    "visitante": p["teams"]["away"]["name"]
+                }
+        
+        if res_jugadores.status_code == 200:
+            data_j = res_jugadores.json()
+            if "response" in data_j and data_j["response"]:
                 # La estructura de /fixtures/players devuelve una lista de equipos
-                for team_data in data["response"]:
-                    for player in team_data.get("players", []):
+                for team in data_j["response"]:
+                    for player in team.get("players", []):
+                        # Accedemos a la primera estadística disponible
                         stats = player.get("statistics", [{}])[0]
                         resultado["jugadores"].append({
                             "nombre": player["player"]["name"],
-                            "goles": stats.get("games", {}).get("minutes", 0), # Ejemplo
-                            "posicion": player.get("statistics", [{}])[0].get("games", {}).get("position", "N/A"),
                             "goles": stats.get("goals", {}).get("total", 0),
                             "faltas": stats.get("fouls", {}).get("committed", 0),
                             "atajadas": stats.get("goalkeeper", {}).get("saves", 0)
                         })
     except Exception as e:
         resultado["error_api"] = str(e)
+        
     return resultado
 @app.get("/", response_class=HTMLResponse)
 async def root():
