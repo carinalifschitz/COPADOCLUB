@@ -19,7 +19,7 @@ app.add_middleware(
 GROK_API_KEY = os.environ.get("GROK_API_KEY")
 FOOTBALL_API_KEY = os.environ.get("FOOTBALL_API_KEY")
 
-# Inicialización segura apuntando al motor gratuito de Groq
+# Inicialización corregida con la URL base correcta para el cliente de Groq
 grok_client = None
 if GROK_API_KEY:
     grok_client = OpenAI(
@@ -28,45 +28,57 @@ if GROK_API_KEY:
     )
 
 def obtener_datos_final_mundo():
-    # ID CAMBIADO POR UNO VÁLIDO QUE RETORNA ESTADÍSTICAS (Partido reciente)
-    fixture_id = "1187234" 
+    # --- CAMBIO NECESARIO ---
+    # En lugar de usar un ID fijo que devuelve datos vacíos, 
+    # buscamos el último partido de la Premier League (ID 39).
+    base_url = "https://v3.football.api-sports.io"
     headers = {
         "x-apisports-key": FOOTBALL_API_KEY or "",
         "x-rapidapi-host": "v3.football.api-sports.io"
     }
     
-    resultado = {"detalles": {"partido": "Partido de Prueba"}, "jugadores": []}
+    resultado = {"detalles": {"partido": "Buscando partido reciente..."}, "jugadores": []}
+    
     try:
-        url = f"https://v3.football.api-sports.io/fixtures/players?fixture={fixture_id}"
-        res = requests.get(url, headers=headers, timeout=10)
-        
-        if res.status_code == 200:
-            data = res.json()
-            if "response" in data and data["response"]:
-                for team in data["response"]:
-                    for player in team.get("players", []):
-                        stats = player.get("statistics", [{}])[0]
-                        # ESTRUCTURA DETALLADA QUE QUERÍAS MANTENER
-                        resultado["jugadores"].append({
-                            "nombre": player["player"]["name"],
-                            "posicion": stats.get("games", {}).get("position", "N/A"),
-                            "minutos": stats.get("games", {}).get("minutes", 0),
-                            "calificacion": stats.get("games", {}).get("rating", "N/A"),
-                            "goles": stats.get("goals", {}).get("total", 0),
-                            "asistencias": stats.get("goals", {}).get("assists", 0),
-                            "tiros_total": stats.get("shots", {}).get("total", 0),
-                            "tiros_al_arco": stats.get("shots", {}).get("on", 0),
-                            "pases_completados": stats.get("passes", {}).get("accuracy", "0%"),
-                            "faltas_cometidas": stats.get("fouls", {}).get("committed", 0),
-                            "faltas_recibidas": stats.get("fouls", {}).get("drawn", 0),
-                            "tarjetas_amarillas": stats.get("cards", {}).get("yellow", 0),
-                            "tarjetas_rojas": stats.get("cards", {}).get("red", 0),
-                            "atajadas": stats.get("goalkeeper", {}).get("saves", 0)
-                        })
+        # Obtenemos el ID del partido más reciente de la liga
+        res_list = requests.get(f"{base_url}/fixtures?league=39&season=2025&last=1", headers=headers, timeout=10)
+        if res_list.status_code == 200:
+            data_list = res_list.json()
+            if data_list.get("response"):
+                fixture_id = data_list["response"][0]["fixture"]["id"]
+                resultado["detalles"]["partido"] = f"{data_list['response'][0]['teams']['home']['name']} vs {data_list['response'][0]['teams']['away']['name']}"
+                
+                # --- LÓGICA DE EXTRACCIÓN DETALLADA (TAL CUAL LA TENÍAS) ---
+                url = f"{base_url}/fixtures/players?fixture={fixture_id}"
+                res = requests.get(url, headers=headers, timeout=10)
+                
+                if res.status_code == 200:
+                    data = res.json()
+                    if "response" in data and data["response"]:
+                        for team in data["response"]:
+                            for player in team.get("players", []):
+                                stats = player.get("statistics", [{}])[0]
+                                resultado["jugadores"].append({
+                                    "nombre": player["player"]["name"],
+                                    "posicion": stats.get("games", {}).get("position", "N/A"),
+                                    "minutos": stats.get("games", {}).get("minutes", 0),
+                                    "calificacion": stats.get("games", {}).get("rating", "N/A"),
+                                    "goles": stats.get("goals", {}).get("total", 0),
+                                    "asistencias": stats.get("goals", {}).get("assists", 0),
+                                    "tiros_total": stats.get("shots", {}).get("total", 0),
+                                    "tiros_al_arco": stats.get("shots", {}).get("on", 0),
+                                    "pases_completados": stats.get("passes", {}).get("accuracy", "0%"),
+                                    "faltas_cometidas": stats.get("fouls", {}).get("committed", 0),
+                                    "faltas_recibidas": stats.get("fouls", {}).get("drawn", 0),
+                                    "tarjetas_amarillas": stats.get("cards", {}).get("yellow", 0),
+                                    "tarjetas_rojas": stats.get("cards", {}).get("red", 0),
+                                    "atajadas": stats.get("goalkeeper", {}).get("saves", 0)
+                                })
     except Exception as e:
-        resultado["error_api"] = str(e)
+        resultado["error"] = str(e)
+        
     return resultado
-
+    
 @app.get("/", response_class=HTMLResponse)
 async def root():
     ruta_html = os.path.join(os.path.dirname(__file__), "index.html")
