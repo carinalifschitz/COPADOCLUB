@@ -25,7 +25,7 @@ if GROK_API_KEY:
     grok_client = OpenAI(
         api_key=GROK_API_KEY,
         # CORRECCIÓN: Quitamos '/v1' para evitar que la librería OpenAI lo duplique internamente
-        base_url="https://api.groq.com/openai"
+        base_url="https://api.groq.com/openai/v1"
     )
 
 def obtener_datos_final_mundo():
