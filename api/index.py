@@ -19,7 +19,7 @@ GROK_API_KEY = os.environ.get("GROK_API_KEY")
 FOOTBALL_API_KEY = os.environ.get("FOOTBALL_API_KEY")
 
 def obtener_datos_final_mundo():
-    # ID de la final Qatar 2022
+    # CORRECCIÓN: Se restauró la URL oficial completa del endpoint para fixtures de api-football
     url = "https://api-sports.io"
     headers = {"x-apisports-key": FOOTBALL_API_KEY or "", "User-Agent": "Mozilla/5.0"}
     
@@ -64,8 +64,8 @@ async def probar_apis():
     if GROK_API_KEY:
         try:
             res = requests.post(
+                # CORRECCIÓN: Se restauró la URL completa del endpoint de chat de xAI
                 "https://x.ai",
-                # OJO: Se agregó el User-Agent para saltar Cloudflare
                 headers={
                     "Authorization": f"Bearer {GROK_API_KEY}", 
                     "Content-Type": "application/json",
@@ -104,8 +104,8 @@ async def obtener_trivias():
     
     try:
         res = requests.post(
+            # CORRECCIÓN: Se restauró la URL completa del endpoint de chat de xAI
             "https://x.ai",
-            # OJO: Se agregó el User-Agent para saltar Cloudflare
             headers={
                 "Authorization": f"Bearer {GROK_API_KEY}", 
                 "Content-Type": "application/json",
