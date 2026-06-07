@@ -27,32 +27,26 @@ if GROK_API_KEY:
         base_url="https://api.groq.com/openai/v1"
     )
 def obtener_datos_final_mundo():
-    base_url = "https://v3.football.api-sports.io"
-    # IMPORTANTE: He usado un ID de la temporada 2026 que tiene datos frescos.
-    # Si sigue fallando, es porque tu API_KEY no tiene acceso a datos premium.
+    # ID de la Final Qatar 2022
     fixture_id = "1035570" 
-    
     headers = {
         "x-apisports-key": FOOTBALL_API_KEY or "",
         "x-rapidapi-host": "v3.football.api-sports.io"
     }
     
-    resultado = {"detalles": {}, "jugadores": []}
+    resultado = {"detalles": {"partido": "Final Mundial 2022"}, "jugadores": []}
     
     try:
-        # Consultamos el endpoint de jugadores
-        url = f"{base_url}/fixtures/players?fixture={fixture_id}"
-        res = requests.get(url, headers=headers, timeout=15)
+        url = f"https://v3.football.api-sports.io/fixtures/players?fixture={fixture_id}"
+        res = requests.get(url, headers=headers, timeout=10)
         
         if res.status_code == 200:
             data = res.json()
             if "response" in data and data["response"]:
                 for team in data["response"]:
                     for player in team.get("players", []):
-                        # Obtenemos la primera estadística (usualmente la única)
                         stats = player.get("statistics", [{}])[0]
-                        
-                        # AQUÍ AGREGAMOS TODA LA INFORMACIÓN DISPONIBLE
+                        # AGREGANDO TODA LA INFORMACIÓN DE NUEVO
                         resultado["jugadores"].append({
                             "nombre": player["player"]["name"],
                             "posicion": stats.get("games", {}).get("position", "N/A"),
@@ -70,10 +64,10 @@ def obtener_datos_final_mundo():
                             "atajadas": stats.get("goalkeeper", {}).get("saves", 0)
                         })
     except Exception as e:
-        resultado["error_api"] = str(e)
+        resultado["error"] = str(e)
         
     return resultado
-
+    
 @app.get("/", response_class=HTMLResponse)
 async def root():
     ruta_html = os.path.join(os.path.dirname(__file__), "index.html")
