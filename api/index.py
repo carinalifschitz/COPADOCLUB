@@ -68,7 +68,7 @@ async def probar_apis():
                 "https://api.x.ai/v1/chat/completions",
                 headers={"Authorization": f"Bearer {GROK_API_KEY}", "Content-Type": "application/json"},
                 json={
-                    "model": "grok-2-mini", 
+                    "model": "grok-beta", 
                     "messages": [{"role": "user", "content": "Hola"}]
                 },
                 timeout=10
@@ -87,10 +87,9 @@ async def obtener_trivias():
     prompt_contenido = f"Crea 5 preguntas de trivia basadas en estos jugadores: {json.dumps(info_jugadores)}"
     
     payload = {
-        "model": "grok-2-mini", # CORRECCIÓN: Cambiado modelo a "grok-2"
+        "model": "grok-beta",
         "messages": [
-            {"role": "system", "content": "Responde SOLO JSON: {'preguntas': [{'pregunta': '', 'opciones': [], 'correcta': ''}]}"},
-            {"role": "user", "content": prompt_contenido}
+            {"role": "user", "content": "Genera un JSON con 15 preguntas de trivia sobre fútbol. Formato: {'preguntas': [{'pregunta': '...', 'opciones': ['A','B','C'], 'correcta': '...'}]}"}
         ]
     }
     
