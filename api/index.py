@@ -109,7 +109,20 @@ async def obtener_trivias():
 
     datos = obtener_datos_final_mundo()
     info_jugadores = datos.get('jugadores', [])[:15]
-    prompt_contenido = f"Crea 10 preguntas de trivia en formato JSON basándote estrictamente en estos jugadores: {json.dumps(info_jugadores)}. Formato: {{'preguntas': [{{'pregunta': '...', 'opciones': ['A','B','C'], 'correcta': '...'}}]}}"
+    if not info_jugadores:
+    prompt_contenido = (
+        "Crea 50 preguntas de trivia basadas únicamente en los hechos ocurridos "
+        "en el último partido del último mundial (por favor no alucines no inventes datos salvo para las respuestas a elegir). "
+        "No alucines datos. Si no hay información suficiente sobre algún aspecto, "
+        "omítelo. Formato de salida: {'preguntas': [{'pregunta': '...', "
+        "'opciones': ['A','B','C'], 'correcta': '...'}]}"
+    )
+else:
+    prompt_contenido = (
+        f"Crea 50 preguntas de trivia basándote estrictamente en estos jugadores: "
+        f"{json.dumps(info_jugadores)}. Formato: {{'preguntas': [{{'pregunta': '...', "
+        f"'opciones': ['A','B','C'], 'correcta': '...'}}]}}"
+    )
     
     try:
         response = grok_client.chat.completions.create(
